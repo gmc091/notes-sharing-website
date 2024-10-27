@@ -1,13 +1,14 @@
-// app/api/leaderboard/route.ts
 import { NextResponse } from "next/server";
 import { auth, clerkClient, type User } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma"; // Updated import
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const { userId: currentUserId } = auth();
 
-    // Get users with their note counts
+    // Rest of the leaderboard code remains the same...
     const users = await prisma.user.findMany({
       where: {
         showInLeaderboard: true,
@@ -24,7 +25,6 @@ export async function GET() {
       take: 10,
     });
 
-    // Get Clerk user data
     const userIds = users.map((user) => user.clerkId);
     let clerkUsers: User[] = [];
     if (userIds.length > 0) {

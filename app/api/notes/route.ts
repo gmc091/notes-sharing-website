@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { clerkClient, type User } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma"; // Updated import
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
