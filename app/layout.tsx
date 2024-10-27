@@ -3,7 +3,6 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Appearance } from "@clerk/types";
 import { itIT } from "@clerk/localizations";
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const metadata: Metadata = {
   title: "Appunti - Liceo aprosio",
@@ -98,9 +97,7 @@ export default function RootLayout({
   return (
     <ClerkProvider localization={itIT} appearance={appearance}>
       <html lang="it" className="h-full">
-        <TooltipProvider>
-          <body className="flex flex-col min-h-full">{children}</body>
-        </TooltipProvider>
+        <body className="flex flex-col min-h-full">{children}</body>
       </html>
     </ClerkProvider>
   );
