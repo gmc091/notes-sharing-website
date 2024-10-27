@@ -6,18 +6,15 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { headers } from "next/headers";
 
-async function getNoteData(noteId: string, preview: boolean = false) {
-  // Get the request headers to build the correct URL
+async function getNoteData(noteId: string) {
   const headersList = headers();
   const protocol = headersList.get("x-forwarded-proto") || "http";
   const host = headersList.get("host");
-
-  // Build the URL using the current request's host
   const baseUrl = `${protocol}://${host}`;
 
-  const res = await fetch(`${baseUrl}/api/notes/${noteId}?preview=${preview}`, {
+  const res = await fetch(`${baseUrl}/api/notes/${noteId}`, {
     cache: "no-store",
-    // Make sure we're sending the request from the server
+    // Forward the cookies for auth
     headers: {
       Cookie: headersList.get("cookie") || "",
     },
@@ -35,25 +32,22 @@ async function getNoteData(noteId: string, preview: boolean = false) {
 
 export default async function NotePage({
   params,
-  searchParams,
 }: {
   params: { noteId: string };
-  searchParams: { preview?: string };
 }) {
   try {
-    const isPreview = searchParams.preview === "true";
-    const note = await getNoteData(params.noteId, isPreview);
-    return <NoteViewer note={note} isPreview={isPreview} />;
+    const note = await getNoteData(params.noteId);
+    return <NoteViewer note={note} />;
   } catch (error) {
     console.error(error);
     return (
-      <div className="bg-gray-50 p-4 flex items-center justify-center">
+      <div className="bg-gray-50 p-4 flex items-center justify-center min-h-screen">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
               <p className="text-muted-foreground">
                 {error instanceof Error && error.message === "Unauthorized"
-                  ? "Non hai i permessi necessari per visualizzare questo contenuto."
+                  ? "Non hai abbastanza punti per visualizzare questo contenuto."
                   : "Si è verificato un errore durante il caricamento degli appunti."}
               </p>
               <Button asChild>

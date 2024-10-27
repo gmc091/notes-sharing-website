@@ -164,7 +164,6 @@ const getFileTypeInfo = (filename: string): FileTypeInfo => {
 };
 
 // Components
-
 const PointSpendingDialog: React.FC<PointSpendingDialogProps> = ({
   isOpen,
   onConfirm,
@@ -338,7 +337,6 @@ const PDFViewer = ({ file, fileName }: { file: File; fileName: string }) => {
             iframeRef.current.contentDocument ||
             iframeRef.current.contentWindow?.document;
 
-          // Add proper type checking
           if (
             iframeDoc &&
             iframeDoc.body &&
@@ -348,7 +346,6 @@ const PDFViewer = ({ file, fileName }: { file: File; fileName: string }) => {
             setIsLoading(false);
           }
         } catch (e) {
-          // Cross-origin errors will be caught here
           console.error(e);
           setTimeout(() => setIsLoading(false), 2000);
         }
@@ -404,6 +401,7 @@ const PDFViewer = ({ file, fileName }: { file: File; fileName: string }) => {
     </div>
   );
 };
+
 const FileViewer = ({ file }: { file: File }) => {
   const fileName = useMemo(() => getCleanFileName(file.key), [file.key]);
 
@@ -435,7 +433,6 @@ const FileViewer = ({ file }: { file: File }) => {
     );
   }
 
-  // Fallback for non-previewable files
   return (
     <div className="flex flex-col items-center justify-center h-full p-8 bg-gray-100">
       <div className="text-center max-w-md">
@@ -531,12 +528,9 @@ const FileList = ({
   );
 };
 
-export const NoteViewer: React.FC<{ note: Note; isPreview: boolean }> = ({
-  note,
-  isPreview,
-}) => {
+export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
   const router = useRouter();
-  const [showPointDialog, setShowPointDialog] = useState(!isPreview);
+  const [showPointDialog, setShowPointDialog] = useState(true);
   const [showRatingDialog, setShowRatingDialog] = useState(false);
   const [hasViewed, setHasViewed] = useState(false);
   const [userPoints, setUserPoints] = useState<number | null>(null);
@@ -544,7 +538,7 @@ export const NoteViewer: React.FC<{ note: Note; isPreview: boolean }> = ({
   const [activeTab, setActiveTab] = useState("viewer");
 
   // Fetch user points and view status on component mount
-  React.useEffect(() => {
+  useEffect(() => {
     async function fetchData() {
       try {
         const [pointsRes, viewStatusRes] = await Promise.all([
@@ -566,14 +560,16 @@ export const NoteViewer: React.FC<{ note: Note; isPreview: boolean }> = ({
 
         setUserPoints(pointsData.points);
         setHasViewed(viewStatusData.hasViewed);
+        if (viewStatusData.hasViewed) {
+          setShowPointDialog(false);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
       }
     }
-    if (!isPreview) {
-      fetchData();
-    }
-  }, [isPreview, note.id]);
+
+    fetchData();
+  }, [note.id]);
 
   const handlePointSpending = async () => {
     try {
@@ -590,13 +586,13 @@ export const NoteViewer: React.FC<{ note: Note; isPreview: boolean }> = ({
 
       setShowPointDialog(false);
       setHasViewed(true);
+
       // Refresh points
       const pointsRes = await fetch("/api/points");
       const pointsData = await pointsRes.json();
       setUserPoints(pointsData.points);
     } catch (error) {
       console.error("Error spending point:", error);
-      // TODO: Add toast notification for error
       router.push("/");
     }
   };
@@ -619,13 +615,12 @@ export const NoteViewer: React.FC<{ note: Note; isPreview: boolean }> = ({
       router.refresh();
     } catch (error) {
       console.error("Error submitting rating:", error);
-      // TODO: Add toast notification for error
     }
   };
 
   const downloadFile = useCallback(
     async (file: File) => {
-      if (!hasViewed && !isPreview) {
+      if (!hasViewed) {
         setShowPointDialog(true);
         return;
       }
@@ -647,23 +642,22 @@ export const NoteViewer: React.FC<{ note: Note; isPreview: boolean }> = ({
         console.error("Error downloading file:", error);
       }
     },
-    [hasViewed, isPreview]
+    [hasViewed]
   );
 
   const handleViewFile = useCallback(
     (file: File) => {
-      if (!hasViewed && !isPreview) {
+      if (!hasViewed) {
         setShowPointDialog(true);
         return;
       }
       setActiveFile(file);
       setActiveTab("viewer");
     },
-    [hasViewed, isPreview]
+    [hasViewed]
   );
 
-  // Show blurred content if not preview and point not spent
-  const isBlurred = !isPreview && !hasViewed;
+  const isBlurred = !hasViewed;
 
   return (
     <div className="bg-gray-50">
@@ -696,12 +690,10 @@ export const NoteViewer: React.FC<{ note: Note; isPreview: boolean }> = ({
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                {!isPreview && (
-                  <Badge variant="secondary" className="gap-1">
-                    <Coins className="h-3.5 w-3.5" />
-                    <span>{userPoints} punti</span>
-                  </Badge>
-                )}
+                <Badge variant="secondary" className="gap-1">
+                  <Coins className="h-3.5 w-3.5" />
+                  <span>{userPoints} punti</span>
+                </Badge>
                 <Badge variant="secondary" className="text-sm">
                   {note.files.length}{" "}
                   {note.files.length === 1 ? "file" : "files"}
@@ -794,7 +786,7 @@ export const NoteViewer: React.FC<{ note: Note; isPreview: boolean }> = ({
         />
 
         {/* Rating button - only show if user has viewed the note */}
-        {hasViewed && !isPreview && (
+        {hasViewed && (
           <Button
             onClick={() => setShowRatingDialog(true)}
             className="fixed bottom-4 right-4"
@@ -802,25 +794,6 @@ export const NoteViewer: React.FC<{ note: Note; isPreview: boolean }> = ({
           >
             <Star className="mr-2 h-4 w-4" /> Valuta
           </Button>
-        )}
-
-        {/* Preview mode banner */}
-        {isPreview && (
-          <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4">
-            <div className="max-w-7xl mx-auto flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Stai visualizzando l&apos;anteprima. Per accedere a tutti i file
-                spendi 1 punto.
-              </p>
-              <Button
-                onClick={() => router.push(`/note/${note.id}`)}
-                className="ml-4"
-              >
-                <Coins className="mr-2 h-4 w-4" />
-                Sblocca ({userPoints} punti disponibili)
-              </Button>
-            </div>
-          </div>
         )}
       </div>
     </div>

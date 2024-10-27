@@ -193,33 +193,19 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
       </CardContent>
 
       <CardFooter className="pt-4">
-        <div className="grid grid-cols-2 gap-2 w-full">
-          {/* Preview button */}
-          <Button asChild variant="outline">
-            <Link
-              href={`/note/${note.id}?preview=true`}
-              className="flex items-center justify-center gap-2"
-            >
-              <Eye className="h-4 w-4" />
-              <span className="font-medium">Preview</span>
-            </Link>
-          </Button>
-
-          {/* View Full button */}
-          <Button
-            asChild
-            variant="default"
-            className="group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300"
+        <Button
+          asChild
+          variant="default"
+          className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300"
+        >
+          <Link
+            href={`/note/${note.id}`}
+            className="flex items-center justify-center gap-2"
           >
-            <Link
-              href={`/note/${note.id}`}
-              className="flex items-center justify-center gap-2"
-            >
-              <span className="font-medium">Visualizza</span>
-              <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          </Button>
-        </div>
+            <span className="font-medium">Visualizza</span>
+            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </Button>
       </CardFooter>
     </Card>
   );

@@ -1,3 +1,4 @@
+// app/api/notes/[noteId]/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -14,19 +15,13 @@ export async function GET(
   { params }: { params: { noteId: string } }
 ) {
   try {
-    // Get preview mode from query params first
-    const { searchParams } = new URL(request.url);
-    const previewMode = searchParams.get("preview") === "true";
+    const { userId } = auth();
 
-    // Get auth status - don't throw if auth fails and we're in preview mode
-    let userId: string | null = null;
-    try {
-      const authResult = auth();
-      userId = authResult.userId;
-    } catch (e) {
-      if (!previewMode) {
-        throw e; // Only throw auth errors if not in preview mode
-      }
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
     }
 
     const { noteId } = paramsSchema.parse({ noteId: params.noteId });
@@ -53,11 +48,11 @@ export async function GET(
       return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
-    // Check if user can view the full note (not needed for preview)
-    const canView = userId ? await canUserViewNote(userId) : false;
+    // Check if user can view the note
+    const canView = await canUserViewNote(userId);
 
-    // If it's not preview mode and the user can't view, return error
-    if (!previewMode && !canView && userId !== note.userId) {
+    // If user can't view and it's not their note, return error
+    if (!canView && userId !== note.userId) {
       return NextResponse.json(
         { error: "Insufficient points to view note" },
         { status: 403 }
@@ -66,14 +61,7 @@ export async function GET(
 
     const [filesWithUrls, userData] = await Promise.all([
       Promise.all(
-        note.filePaths.map(async (filePath, index) => {
-          // In preview mode, only get metadata/url for first file
-          if (previewMode && index > 0) {
-            return {
-              key: filePath,
-              name: filePath.split("/").pop() || filePath,
-            };
-          }
+        note.filePaths.map(async (filePath) => {
           const [metadata, url] = await Promise.all([
             getR2FileMetadata(filePath),
             generateSignedUrl(filePath),
@@ -86,8 +74,8 @@ export async function GET(
         : clerkClient.users.getUser(note.userId),
     ]);
 
-    // If not preview mode and user is viewing (not their own note), record view
-    if (!previewMode && userId && userId !== note.userId) {
+    // If user is viewing (not their own note), record view
+    if (userId && userId !== note.userId) {
       await recordView(noteId, userId);
     }
 
@@ -96,7 +84,6 @@ export async function GET(
       files: filesWithUrls,
       user: note.isAnonymous ? null : userData,
       userId: undefined, // Remove raw userId from response
-      previewMode,
       canView,
     });
   } catch (error) {
