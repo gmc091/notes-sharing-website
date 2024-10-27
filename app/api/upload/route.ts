@@ -5,6 +5,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 import { generateUniqueFilename, validateFilename } from "@/lib/file-utils";
 import { auth } from "@clerk/nextjs/server";
+import { handleNoteUpload } from "@/lib/points-utils";
 
 const prisma = new PrismaClient();
 
@@ -145,6 +146,9 @@ export async function POST(request: Request) {
         viewCount: 0,
       },
     });
+
+    // Award points for uploading
+    await handleNoteUpload(userId, note.id);
 
     logger.info("Request data validated successfully");
 

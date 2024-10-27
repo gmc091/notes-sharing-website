@@ -4,6 +4,7 @@ import UserWrapper from "@/components/auth-wrapper";
 import TermsDialog from "@/components/terms-of-service";
 import { Navbar } from "@/components/navbar";
 import Footer from "@/components/footer";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function AuthenticatedLayout({
   children,
@@ -17,6 +18,7 @@ export default function AuthenticatedLayout({
         <Navbar />
         <main className="flex-grow bg-gray-50">{children}</main>
         <Footer />
+        <Toaster />
       </UserWrapper>
     </TooltipProvider>
   );

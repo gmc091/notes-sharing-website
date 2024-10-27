@@ -9,26 +9,32 @@ generator client {
 }
 
 model Note {
-  id            Int      @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   title         String
   schools       String[]
   subjects      String[]
   years         Int[]
   filePaths     String[]
   createdAt     DateTime
-  userId        String   // Clerk user ID
-  isAnonymous   Boolean  @default(false)
-  viewCount     Int      @default(0)
+  userId        String      // Clerk user ID
+  isAnonymous   Boolean     @default(false)
+  viewCount     Int         @default(0)
+  rating        Float?      // Average rating
+  ratingCount   Int         @default(0)
   views         NoteView[]
-  user          User     @relation(fields: [userId], references: [clerkId])
+  ratings       NoteRating[]
+  user          User        @relation(fields: [userId], references: [clerkId])
 }
 
 model User {
-  id               Int       @id @default(autoincrement())
-  clerkId          String    @unique // Clerk user ID
-  showInLeaderboard Boolean  @default(true)
+  id               Int          @id @default(autoincrement())
+  clerkId          String       @unique // Clerk user ID
+  points           Int          @default(5) // Starting points
+  showInLeaderboard Boolean     @default(true)
   notes            Note[]
   noteViews        NoteView[]
+  noteRatings      NoteRating[]
+  pointTransactions PointTransaction[]
 }
 
 model NoteView {
@@ -40,4 +46,26 @@ model NoteView {
   user      User     @relation(fields: [userId], references: [clerkId])
 
   @@unique([noteId, userId])
+}
+
+model NoteRating {
+  id        Int      @id @default(autoincrement())
+  noteId    Int
+  userId    String   // Clerk user ID
+  rating    Int      // 1-5 stars
+  createdAt DateTime @default(now())
+  note      Note     @relation(fields: [noteId], references: [id])
+  user      User     @relation(fields: [userId], references: [clerkId])
+
+  @@unique([noteId, userId])
+}
+
+model PointTransaction {
+  id          Int      @id @default(autoincrement())
+  userId      String   // Clerk user ID
+  amount      Int      // Can be positive or negative
+  type        String   // "VIEW_SPENT", "VIEW_EARNED", "UPLOAD_REWARD", "MONTHLY_BONUS", "RATING_BONUS"
+  description String
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [clerkId])
 }

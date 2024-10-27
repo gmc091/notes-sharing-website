@@ -41,10 +41,26 @@ import {
   File,
   type LucideIcon,
   Loader2,
+  Coins,
+  Star,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import type { BadgeProps } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialogFooter,
+  AlertDialogHeader,
+} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 // Types
 interface File {
@@ -61,6 +77,18 @@ interface Note {
   years: number[];
   files: File[];
   createdAt: string;
+}
+
+interface PointSpendingDialogProps {
+  isOpen: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+interface RatingDialogProps {
+  isOpen: boolean;
+  onRate: (rating: number) => void;
+  onCancel: () => void;
 }
 
 type BadgeVariant = NonNullable<BadgeProps["variant"]>;
@@ -136,6 +164,82 @@ const getFileTypeInfo = (filename: string): FileTypeInfo => {
 };
 
 // Components
+
+const PointSpendingDialog: React.FC<PointSpendingDialogProps> = ({
+  isOpen,
+  onConfirm,
+  onCancel,
+}) => (
+  <Dialog open={isOpen} onOpenChange={() => onCancel()}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Conferma visualizzazione</DialogTitle>
+        <DialogDescription>
+          Vuoi spendere 1 punto per visualizzare questo appunto?
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter className="flex space-x-2">
+        <Button variant="outline" onClick={onCancel}>
+          Annulla
+        </Button>
+        <Button onClick={onConfirm}>
+          <Coins className="mr-2 h-4 w-4" /> Spendi 1 punto
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+);
+
+const RatingDialog: React.FC<RatingDialogProps> = ({
+  isOpen,
+  onRate,
+  onCancel,
+}) => {
+  const [selectedRating, setSelectedRating] = useState<number>(0);
+
+  return (
+    <Dialog open={isOpen} onOpenChange={() => onCancel()}>
+      <DialogContent>
+        <AlertDialogHeader>
+          <DialogTitle>Valuta questo appunto</DialogTitle>
+          <DialogDescription>
+            La tua valutazione aiuta gli altri studenti a trovare contenuti di
+            qualità
+          </DialogDescription>
+        </AlertDialogHeader>
+        <div className="flex justify-center py-4">
+          {[1, 2, 3, 4, 5].map((rating) => (
+            <button
+              key={rating}
+              className="p-1"
+              onClick={() => setSelectedRating(rating)}
+            >
+              <Star
+                className={`h-8 w-8 ${
+                  rating <= selectedRating
+                    ? "text-yellow-500 fill-current"
+                    : "text-gray-300"
+                }`}
+              />
+            </button>
+          ))}
+        </div>
+        <AlertDialogFooter className="flex space-x-2">
+          <Button variant="outline" onClick={onCancel}>
+            Annulla
+          </Button>
+          <Button
+            onClick={() => onRate(selectedRating)}
+            disabled={selectedRating === 0}
+          >
+            Conferma valutazione
+          </Button>
+        </AlertDialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const ImageViewer = ({ file, fileName }: { file: File; fileName: string }) => {
   const [scale, setScale] = useState(1.0);
   const [isDragging, setIsDragging] = useState(false);
@@ -427,33 +531,139 @@ const FileList = ({
   );
 };
 
-export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
+export const NoteViewer: React.FC<{ note: Note; isPreview: boolean }> = ({
+  note,
+  isPreview,
+}) => {
+  const router = useRouter();
+  const [showPointDialog, setShowPointDialog] = useState(!isPreview);
+  const [showRatingDialog, setShowRatingDialog] = useState(false);
+  const [hasViewed, setHasViewed] = useState(false);
+  const [userPoints, setUserPoints] = useState<number | null>(null);
   const [activeFile, setActiveFile] = useState(note.files[0]);
   const [activeTab, setActiveTab] = useState("viewer");
 
-  const downloadFile = useCallback(async (file: File) => {
-    try {
-      const response = await fetch(file.url);
-      if (!response.ok) throw new Error("Download failed");
+  // Fetch user points and view status on component mount
+  React.useEffect(() => {
+    async function fetchData() {
+      try {
+        const [pointsRes, viewStatusRes] = await Promise.all([
+          fetch("/api/points"),
+          fetch(`/api/points`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "checkView",
+              noteId: note.id,
+            }),
+          }),
+        ]);
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = getCleanFileName(file.key);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error downloading file:", error);
+        const [pointsData, viewStatusData] = await Promise.all([
+          pointsRes.json(),
+          viewStatusRes.json(),
+        ]);
+
+        setUserPoints(pointsData.points);
+        setHasViewed(viewStatusData.hasViewed);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
     }
-  }, []);
+    if (!isPreview) {
+      fetchData();
+    }
+  }, [isPreview, note.id]);
 
-  const handleViewFile = useCallback((file: File) => {
-    setActiveFile(file);
-    setActiveTab("viewer");
-  }, []);
+  const handlePointSpending = async () => {
+    try {
+      const res = await fetch("/api/points", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "view",
+          noteId: note.id,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to spend point");
+
+      setShowPointDialog(false);
+      setHasViewed(true);
+      // Refresh points
+      const pointsRes = await fetch("/api/points");
+      const pointsData = await pointsRes.json();
+      setUserPoints(pointsData.points);
+    } catch (error) {
+      console.error("Error spending point:", error);
+      // TODO: Add toast notification for error
+      router.push("/");
+    }
+  };
+
+  const handleRating = async (rating: number) => {
+    try {
+      const res = await fetch("/api/points", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "rate",
+          noteId: note.id,
+          rating,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to submit rating");
+
+      setShowRatingDialog(false);
+      router.refresh();
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+      // TODO: Add toast notification for error
+    }
+  };
+
+  const downloadFile = useCallback(
+    async (file: File) => {
+      if (!hasViewed && !isPreview) {
+        setShowPointDialog(true);
+        return;
+      }
+
+      try {
+        const response = await fetch(file.url);
+        if (!response.ok) throw new Error("Download failed");
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = getCleanFileName(file.key);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error("Error downloading file:", error);
+      }
+    },
+    [hasViewed, isPreview]
+  );
+
+  const handleViewFile = useCallback(
+    (file: File) => {
+      if (!hasViewed && !isPreview) {
+        setShowPointDialog(true);
+        return;
+      }
+      setActiveFile(file);
+      setActiveTab("viewer");
+    },
+    [hasViewed, isPreview]
+  );
+
+  // Show blurred content if not preview and point not spent
+  const isBlurred = !isPreview && !hasViewed;
 
   return (
     <div className="bg-gray-50">
@@ -485,9 +695,18 @@ export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
                   })}
                 </CardDescription>
               </div>
-              <Badge variant="secondary" className="text-sm">
-                {note.files.length} {note.files.length === 1 ? "file" : "files"}
-              </Badge>
+              <div className="flex items-center gap-2">
+                {!isPreview && (
+                  <Badge variant="secondary" className="gap-1">
+                    <Coins className="h-3.5 w-3.5" />
+                    <span>{userPoints} punti</span>
+                  </Badge>
+                )}
+                <Badge variant="secondary" className="text-sm">
+                  {note.files.length}{" "}
+                  {note.files.length === 1 ? "file" : "files"}
+                </Badge>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -541,12 +760,15 @@ export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
 
               <TabsContent
                 value="viewer"
-                className="border rounded-lg h-[600px]"
+                className={cn(
+                  "border rounded-lg h-[600px]",
+                  isBlurred && "blur-sm"
+                )}
               >
                 <FileViewer file={activeFile} />
               </TabsContent>
 
-              <TabsContent value="list">
+              <TabsContent value="list" className={cn(isBlurred && "blur-sm")}>
                 <FileList
                   files={note.files}
                   onViewFile={handleViewFile}
@@ -556,6 +778,50 @@ export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Point spending dialog */}
+        <PointSpendingDialog
+          isOpen={showPointDialog}
+          onConfirm={handlePointSpending}
+          onCancel={() => router.push("/")}
+        />
+
+        {/* Rating dialog */}
+        <RatingDialog
+          isOpen={showRatingDialog}
+          onRate={handleRating}
+          onCancel={() => setShowRatingDialog(false)}
+        />
+
+        {/* Rating button - only show if user has viewed the note */}
+        {hasViewed && !isPreview && (
+          <Button
+            onClick={() => setShowRatingDialog(true)}
+            className="fixed bottom-4 right-4"
+            variant="secondary"
+          >
+            <Star className="mr-2 h-4 w-4" /> Valuta
+          </Button>
+        )}
+
+        {/* Preview mode banner */}
+        {isPreview && (
+          <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4">
+            <div className="max-w-7xl mx-auto flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Stai visualizzando l&apos;anteprima. Per accedere a tutti i file
+                spendi 1 punto.
+              </p>
+              <Button
+                onClick={() => router.push(`/note/${note.id}`)}
+                className="ml-4"
+              >
+                <Coins className="mr-2 h-4 w-4" />
+                Sblocca ({userPoints} punti disponibili)
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

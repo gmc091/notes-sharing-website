@@ -1,3 +1,5 @@
+// app/(authenticated)/note/[noteId]/page.tsx
+
 import React from "react";
 import { NoteViewer } from "./note-content";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 
-async function getNoteData(noteId: string) {
+async function getNoteData(noteId: string, preview: boolean = false) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/notes/${noteId}`,
+    `${process.env.NEXT_PUBLIC_API_URL}/api/notes/${noteId}?preview=${preview}`,
     {
       cache: "no-store",
     }
@@ -22,14 +24,17 @@ async function getNoteData(noteId: string) {
 
 export default async function NotePage({
   params,
+  searchParams,
 }: {
   params: { noteId: string };
+  searchParams: { preview?: string };
 }) {
   try {
-    const note = await getNoteData(params.noteId);
-    return <NoteViewer note={note} />;
+    const isPreview = searchParams.preview === "true";
+    const note = await getNoteData(params.noteId, isPreview);
+    return <NoteViewer note={note} isPreview={isPreview} />;
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return (
       <div className="bg-gray-50 p-4 flex items-center justify-center">
         <Card className="w-full max-w-md">

@@ -15,6 +15,9 @@ import {
   ChevronRight,
   FileText,
   Clock,
+  Star,
+  Eye,
+  Coins,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -54,6 +57,11 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
     minute: "2-digit",
   });
 
+  // Format rating
+  const rating = note.rating || 0;
+  const formattedRating = rating.toFixed(1);
+  const ratingColor = rating >= 4 ? "text-yellow-500" : "text-muted-foreground";
+
   return (
     <Card className="group flex flex-col h-full transition-all duration-300 bg-card hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border">
       <CardHeader className="space-y-3 pb-3">
@@ -77,10 +85,59 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
             </div>
           </CardDescription>
         </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {/* Views */}
+            <Tooltip>
+              <TooltipTrigger className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Eye className="h-4 w-4" />
+                <span>{note.viewCount}</span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {note.viewCount}{" "}
+                {note.viewCount === 1 ? "visualizzazione" : "visualizzazioni"}
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Rating */}
+            {note.ratingCount > 0 && (
+              <Tooltip>
+                <TooltipTrigger className="flex items-center gap-1 text-sm">
+                  <Star
+                    className={`h-4 w-4 ${ratingColor}`}
+                    fill="currentColor"
+                  />
+                  <span className={ratingColor}>{formattedRating}</span>
+                  <span className="text-xs text-muted-foreground ml-1">
+                    ({note.ratingCount})
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {formattedRating} su 5 stelle
+                  <br />
+                  {note.ratingCount}{" "}
+                  {note.ratingCount === 1 ? "recensione" : "recensioni"}
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+
+          {/* Point cost indicator */}
+          <Tooltip>
+            <TooltipTrigger>
+              <Badge variant="secondary" className="gap-1">
+                <Coins className="h-3 w-3" />
+                <span>1 punto</span>
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              Costa 1 punto visualizzare questo appunto
+            </TooltipContent>
+          </Tooltip>
+        </div>
         <Separator className="bg-border/80 h-px" />
       </CardHeader>
 
-      {/* Change space-y-6 to space-y-3 to match the header spacing */}
       <CardContent className="flex-grow space-y-3">
         {/* File Count and Types */}
         <div className="flex items-center justify-between">
@@ -105,7 +162,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
 
         <Separator className="bg-border/60" />
 
-        {/* File Preview List - keep the space-y-3 for internal spacing */}
+        {/* File Preview List */}
         <div className="space-y-3">
           {note.files.slice(0, 2).map((file, index) => (
             <div key={index}>
@@ -136,19 +193,33 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
       </CardContent>
 
       <CardFooter className="pt-4">
-        <Button
-          asChild
-          variant="outline"
-          className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300"
-        >
-          <Link
-            href={`/note/${note.id}`}
-            className="flex items-center justify-center gap-2"
+        <div className="grid grid-cols-2 gap-2 w-full">
+          {/* Preview button */}
+          <Button asChild variant="outline">
+            <Link
+              href={`/note/${note.id}?preview=true`}
+              className="flex items-center justify-center gap-2"
+            >
+              <Eye className="h-4 w-4" />
+              <span className="font-medium">Preview</span>
+            </Link>
+          </Button>
+
+          {/* View Full button */}
+          <Button
+            asChild
+            variant="default"
+            className="group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300"
           >
-            <span className="font-medium">View Details</span>
-            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        </Button>
+            <Link
+              href={`/note/${note.id}`}
+              className="flex items-center justify-center gap-2"
+            >
+              <span className="font-medium">Visualizza</span>
+              <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

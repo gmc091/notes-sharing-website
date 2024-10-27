@@ -1,8 +1,11 @@
+// app/api/notes/[noteId]/route.ts
+
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { getR2FileMetadata, generateSignedUrl } from "@/lib/r2";
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { canUserViewNote } from "@/lib/points-utils";
 
 const prisma = new PrismaClient();
 
@@ -18,6 +21,10 @@ export async function GET(
     const { userId } = auth();
     const { noteId } = paramsSchema.parse({ noteId: params.noteId });
 
+    // Get preview mode from query params
+    const { searchParams } = new URL(request.url);
+    const previewMode = searchParams.get("preview") === "true";
+
     const note = await prisma.note.findUnique({
       where: { id: noteId },
       select: {
@@ -31,20 +38,36 @@ export async function GET(
         viewCount: true,
         userId: true,
         isAnonymous: true,
+        rating: true,
+        ratingCount: true,
       },
     });
+
     if (!note) {
       return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
-    // Record view if authenticated
-    if (userId) {
-      await recordView(noteId, userId);
+    // Check if user can view the full note (not needed for preview)
+    const canView = userId ? await canUserViewNote(userId) : false;
+
+    // If it's not preview mode and the user can't view, return error
+    if (!previewMode && !canView && userId !== note.userId) {
+      return NextResponse.json(
+        { error: "Insufficient points to view note" },
+        { status: 403 }
+      );
     }
 
     const [filesWithUrls, userData] = await Promise.all([
       Promise.all(
-        note.filePaths.map(async (filePath) => {
+        note.filePaths.map(async (filePath, index) => {
+          // In preview mode, only get metadata/url for first file
+          if (previewMode && index > 0) {
+            return {
+              key: filePath,
+              name: filePath.split("/").pop() || filePath,
+            };
+          }
           const [metadata, url] = await Promise.all([
             getR2FileMetadata(filePath),
             generateSignedUrl(filePath),
@@ -57,11 +80,18 @@ export async function GET(
         : clerkClient.users.getUser(note.userId),
     ]);
 
+    // If not preview mode and user is viewing (not their own note), record view
+    if (!previewMode && userId && userId !== note.userId) {
+      await recordView(noteId, userId);
+    }
+
     return NextResponse.json({
       ...note,
       files: filesWithUrls,
       user: note.isAnonymous ? null : userData,
       userId: undefined, // Remove raw userId from response
+      previewMode,
+      canView,
     });
   } catch (error) {
     console.error("Error fetching note:", error);
@@ -81,6 +111,8 @@ export async function GET(
     await prisma.$disconnect();
   }
 }
+
+// In app/api/notes/[noteId]/route.ts
 
 async function recordView(noteId: number, userId: string) {
   try {

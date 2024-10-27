@@ -1,6 +1,5 @@
-/**
- * Represents a file within a note
- */
+// types/notes.ts
+
 export interface NoteFile {
   key: string;
   name: string;
@@ -9,19 +8,19 @@ export interface NoteFile {
   url?: string;
 }
 
-/**
- * Represents a note with its associated files and metadata
- */
 export interface Note {
   id: number;
   title: string;
   files: NoteFile[];
   createdAt: string;
+  schools: string[];
+  subjects: string[];
+  years: number[];
+  viewCount: number;
+  rating?: number;
+  ratingCount: number;
 }
 
-/**
- * Response structure from the notes API
- */
 export interface NotesApiResponse {
   notes: Note[];
   totalCount: number;
