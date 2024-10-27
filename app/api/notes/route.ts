@@ -1,7 +1,8 @@
+// app/api/notes/route.ts
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { clerkClient, type User } from "@clerk/nextjs/server";
+import { clerkClient, type User, auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ const querySchema = z.object({
 
 export async function GET(request: Request) {
   try {
+    const { userId } = auth();
     const { searchParams } = new URL(request.url);
 
     // Handle multiple values for schools, subjects, and years
@@ -97,6 +99,18 @@ export async function GET(request: Request) {
           viewCount: true,
           userId: true,
           isAnonymous: true,
+          rating: true,
+          ratingCount: true,
+          views: userId
+            ? {
+                where: {
+                  userId: userId,
+                },
+                select: {
+                  viewedAt: true,
+                },
+              }
+            : false,
         },
       }),
       prisma.note.count({ where }),
@@ -118,17 +132,23 @@ export async function GET(request: Request) {
     }
 
     // Transform the data to match the expected format
-    const notesWithFiles = notes.map((note) => ({
-      ...note,
-      files: note.filePaths.map((path) => ({
-        key: path,
-        name: path.split("/").pop() || path,
-      })),
-      user: note.isAnonymous
-        ? null
-        : clerkUsers.find((u: User) => u.id === note.userId) || null,
-      userId: undefined, // Remove raw userId from response
-    }));
+    const notesWithFiles = notes.map((note) => {
+      // Destructure everything except views using rest operator
+      const { filePaths, userId: noteUserId, ...noteData } = note;
+
+      return {
+        ...noteData,
+        files: filePaths.map((path) => ({
+          key: path,
+          name: path.split("/").pop() || path,
+        })),
+        user: note.isAnonymous
+          ? null
+          : clerkUsers.find((u: User) => u.id === noteUserId) || null,
+        hasViewed: note.views && note.views.length > 0,
+        userId: undefined, // Remove raw userId from response
+      };
+    });
 
     return NextResponse.json({
       notes: notesWithFiles,

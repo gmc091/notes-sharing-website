@@ -41,6 +41,14 @@ export async function GET(
         isAnonymous: true,
         rating: true,
         ratingCount: true,
+        views: {
+          where: {
+            userId: userId,
+          },
+          select: {
+            viewedAt: true,
+          },
+        },
       },
     });
 
@@ -48,15 +56,18 @@ export async function GET(
       return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
-    // Check if user can view the note
-    const canView = await canUserViewNote(userId);
+    const hasViewed = note.views.length > 0;
 
-    // If user can't view and it's not their note, return error
-    if (!canView && userId !== note.userId) {
-      return NextResponse.json(
-        { error: "Insufficient points to view note" },
-        { status: 403 }
-      );
+    // If user has already viewed the note or it's their own note, they can access it
+    // Otherwise, check if they have enough points
+    if (!hasViewed && userId !== note.userId) {
+      const canView = await canUserViewNote(userId);
+      if (!canView) {
+        return NextResponse.json(
+          { error: "Insufficient points to view note" },
+          { status: 403 }
+        );
+      }
     }
 
     const [filesWithUrls, userData] = await Promise.all([
@@ -74,17 +85,25 @@ export async function GET(
         : clerkClient.users.getUser(note.userId),
     ]);
 
-    // If user is viewing (not their own note), record view
-    if (userId && userId !== note.userId) {
+    // If user is viewing (not their own note) and hasn't viewed before, record view
+    if (userId && userId !== note.userId && !hasViewed) {
       await recordView(noteId, userId);
     }
 
     return NextResponse.json({
-      ...note,
+      id: note.id,
+      title: note.title,
+      schools: note.schools,
+      subjects: note.subjects,
+      years: note.years,
+      createdAt: note.createdAt,
+      viewCount: note.viewCount,
+      isAnonymous: note.isAnonymous,
+      rating: note.rating,
+      ratingCount: note.ratingCount,
       files: filesWithUrls,
       user: note.isAnonymous ? null : userData,
-      userId: undefined, // Remove raw userId from response
-      canView,
+      hasViewed,
     });
   } catch (error) {
     console.error("Error fetching note:", error);

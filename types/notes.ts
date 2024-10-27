@@ -19,6 +19,7 @@ export interface Note {
   viewCount: number;
   rating?: number;
   ratingCount: number;
+  hasViewed?: boolean;
 }
 
 export interface NotesApiResponse {

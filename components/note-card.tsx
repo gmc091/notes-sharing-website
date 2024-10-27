@@ -18,6 +18,7 @@ import {
   Star,
   Eye,
   Coins,
+  Check,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -122,20 +123,33 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
             )}
           </div>
 
-          {/* Point cost indicator */}
+          {/* Access Status Indicator */}
           <Tooltip>
             <TooltipTrigger>
-              <Badge variant="secondary" className="gap-1">
-                <Coins className="h-3 w-3" />
-                <span>1 punto</span>
+              <Badge
+                variant={note.hasViewed ? "secondary" : "outline"}
+                className="gap-1"
+              >
+                {note.hasViewed ? (
+                  <>
+                    <Check className="h-3 w-3" />
+                    <span>Disponibile</span>
+                  </>
+                ) : (
+                  <>
+                    <Coins className="h-3 w-3" />
+                    <span>1 punto</span>
+                  </>
+                )}
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              Costa 1 punto visualizzare questo appunto
+              {note.hasViewed
+                ? "Hai già accesso a questo appunto"
+                : "Costa 1 punto visualizzare questo appunto"}
             </TooltipContent>
           </Tooltip>
         </div>
-        <Separator className="bg-border/80 h-px" />
       </CardHeader>
 
       <CardContent className="flex-grow space-y-3">
@@ -202,8 +216,17 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
             href={`/note/${note.id}`}
             className="flex items-center justify-center gap-2"
           >
-            <span className="font-medium">Visualizza</span>
-            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            {note.hasViewed ? (
+              <>
+                <span className="font-medium">Apri appunto</span>
+                <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </>
+            ) : (
+              <>
+                <span className="font-medium">Visualizza</span>
+                <Coins className="h-4 w-4" />
+              </>
+            )}
           </Link>
         </Button>
       </CardFooter>
