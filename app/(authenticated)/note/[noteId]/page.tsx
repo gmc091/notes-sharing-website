@@ -1,20 +1,32 @@
 // app/(authenticated)/note/[noteId]/page.tsx
-
 import React from "react";
 import { NoteViewer } from "./note-content";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { headers } from "next/headers";
 
 async function getNoteData(noteId: string, preview: boolean = false) {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/notes/${noteId}?preview=${preview}`,
-    {
-      cache: "no-store",
-    }
-  );
+  // Get the request headers to build the correct URL
+  const headersList = headers();
+  const protocol = headersList.get("x-forwarded-proto") || "http";
+  const host = headersList.get("host");
+
+  // Build the URL using the current request's host
+  const baseUrl = `${protocol}://${host}`;
+
+  const res = await fetch(`${baseUrl}/api/notes/${noteId}?preview=${preview}`, {
+    cache: "no-store",
+    // Make sure we're sending the request from the server
+    headers: {
+      Cookie: headersList.get("cookie") || "",
+    },
+  });
 
   if (!res.ok) {
+    if (res.status === 403) {
+      throw new Error("Unauthorized");
+    }
     throw new Error("Failed to fetch note");
   }
 
@@ -40,7 +52,9 @@ export default async function NotePage({
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
               <p className="text-muted-foreground">
-                Si è verificato un errore durante il caricamento degli appunti.
+                {error instanceof Error && error.message === "Unauthorized"
+                  ? "Non hai i permessi necessari per visualizzare questo contenuto."
+                  : "Si è verificato un errore durante il caricamento degli appunti."}
               </p>
               <Button asChild>
                 <Link href="/">Torna alla home</Link>

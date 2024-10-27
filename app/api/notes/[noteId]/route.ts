@@ -1,7 +1,5 @@
-// app/api/notes/[noteId]/route.ts
-
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // Updated import
+import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { getR2FileMetadata, generateSignedUrl } from "@/lib/r2";
 import { auth, clerkClient } from "@clerk/nextjs/server";
@@ -16,12 +14,22 @@ export async function GET(
   { params }: { params: { noteId: string } }
 ) {
   try {
-    const { userId } = auth();
-    const { noteId } = paramsSchema.parse({ noteId: params.noteId });
-
-    // Get preview mode from query params
+    // Get preview mode from query params first
     const { searchParams } = new URL(request.url);
     const previewMode = searchParams.get("preview") === "true";
+
+    // Get auth status - don't throw if auth fails and we're in preview mode
+    let userId: string | null = null;
+    try {
+      const authResult = auth();
+      userId = authResult.userId;
+    } catch (e) {
+      if (!previewMode) {
+        throw e; // Only throw auth errors if not in preview mode
+      }
+    }
+
+    const { noteId } = paramsSchema.parse({ noteId: params.noteId });
 
     const note = await prisma.note.findUnique({
       where: { id: noteId },
@@ -110,8 +118,6 @@ export async function GET(
   }
 }
 
-// In app/api/notes/[noteId]/route.ts
-
 async function recordView(noteId: number, userId: string) {
   try {
     // Ensure user exists
@@ -147,3 +153,6 @@ async function recordView(noteId: number, userId: string) {
     console.error("Error recording view:", error);
   }
 }
+
+// Export config to ensure the API route is always dynamic
+export const dynamic = "force-dynamic";
