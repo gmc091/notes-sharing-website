@@ -4,7 +4,6 @@ import React from "react";
 import { NoteViewer } from "./note-content";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 
 async function getNoteData(noteId: string, preview: boolean = false) {
@@ -52,13 +51,4 @@ export default async function NotePage({
       </div>
     );
   }
-}
-
-// Create loading.tsx in the same directory
-export function Loading() {
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
-  );
 }
