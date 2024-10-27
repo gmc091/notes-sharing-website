@@ -1,0 +1,43 @@
+// prisma/schema.prisma
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Note {
+  id            Int      @id @default(autoincrement())
+  title         String
+  schools       String[]
+  subjects      String[]
+  years         Int[]
+  filePaths     String[]
+  createdAt     DateTime
+  userId        String   // Clerk user ID
+  isAnonymous   Boolean  @default(false)
+  viewCount     Int      @default(0)
+  views         NoteView[]
+  user          User     @relation(fields: [userId], references: [clerkId])
+}
+
+model User {
+  id               Int       @id @default(autoincrement())
+  clerkId          String    @unique // Clerk user ID
+  showInLeaderboard Boolean  @default(true)
+  notes            Note[]
+  noteViews        NoteView[]
+}
+
+model NoteView {
+  id        Int      @id @default(autoincrement())
+  noteId    Int
+  userId    String   // Clerk user ID
+  viewedAt  DateTime @default(now())
+  note      Note     @relation(fields: [noteId], references: [id])
+  user      User     @relation(fields: [userId], references: [clerkId])
+
+  @@unique([noteId, userId])
+}

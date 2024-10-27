@@ -1,0 +1,157 @@
+import React from "react";
+import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  ScrollText,
+  Calendar,
+  ChevronRight,
+  FileText,
+  Clock,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { getDisplayFilename } from "@/lib/file-utils";
+import type { Note } from "@/types/notes";
+
+interface NoteCardProps {
+  note: Note;
+}
+
+const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
+  // Get file extensions for badge display
+  const fileTypes = Array.from(
+    new Set(
+      note.files.map((file) => {
+        const extension = file.name.split(".").pop()?.toLowerCase() || "";
+        return extension;
+      })
+    )
+  );
+
+  // Format date in a locale-friendly way
+  const formattedDate = new Date(note.createdAt).toLocaleDateString("it-IT", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
+  // Format time
+  const formattedTime = new Date(note.createdAt).toLocaleTimeString("it-IT", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return (
+    <Card className="group flex flex-col h-full transition-all duration-300 bg-card hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border">
+      <CardHeader className="space-y-3 pb-3">
+        <div className="space-y-2">
+          <CardTitle className="text-lg font-semibold line-clamp-2 text-primary">
+            {note.title}
+          </CardTitle>
+          <CardDescription className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" />
+              <time dateTime={note.createdAt} className="text-muted-foreground">
+                {formattedTime}
+              </time>
+            </div>
+            <Separator orientation="vertical" className="h-3" />
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              <time dateTime={note.createdAt} className="text-muted-foreground">
+                {formattedDate}
+              </time>
+            </div>
+          </CardDescription>
+        </div>
+        <Separator className="bg-border/80 h-px" />
+      </CardHeader>
+
+      {/* Change space-y-6 to space-y-3 to match the header spacing */}
+      <CardContent className="flex-grow space-y-3">
+        {/* File Count and Types */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <ScrollText className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">
+              {note.files.length} {note.files.length === 1 ? "file" : "files"}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5 justify-end">
+            {fileTypes.map((type) => (
+              <Badge
+                key={type}
+                variant="secondary"
+                className="uppercase text-[10px] font-semibold px-2 py-0 bg-secondary/50"
+              >
+                {type}
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        <Separator className="bg-border/60" />
+
+        {/* File Preview List - keep the space-y-3 for internal spacing */}
+        <div className="space-y-3">
+          {note.files.slice(0, 2).map((file, index) => (
+            <div key={index}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 text-sm group/file">
+                    <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground group-hover/file:text-primary transition-colors" />
+                    <span className="truncate text-muted-foreground group-hover/file:text-primary transition-colors">
+                      {getDisplayFilename(file.name, 30)}
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  className="max-w-[300px] bg-popover/95 px-3 py-1.5"
+                >
+                  <p className="text-xs">{file.name}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          ))}
+          {note.files.length > 2 && (
+            <p className="text-sm text-muted-foreground/80 italic pl-6">
+              +{note.files.length - 2} more files...
+            </p>
+          )}
+        </div>
+      </CardContent>
+
+      <CardFooter className="pt-4">
+        <Button
+          asChild
+          variant="outline"
+          className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300"
+        >
+          <Link
+            href={`/note/${note.id}`}
+            className="flex items-center justify-center gap-2"
+          >
+            <span className="font-medium">View Details</span>
+            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+};
+
+export default NoteCard;
