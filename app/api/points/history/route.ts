@@ -1,8 +1,10 @@
 // app/api/points/history/route.ts
-
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma"; // Updated import
+import { prisma } from "@/lib/prisma";
+
+// Mark this route as dynamic
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
