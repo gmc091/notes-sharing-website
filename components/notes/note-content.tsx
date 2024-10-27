@@ -5,10 +5,11 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import type { Note } from "@/types/notes";
+import type { Note, NoteFile, ViewerFile } from "@/types/notes";
 import { NoteViewerHeader } from "./note-viewer-header";
 import { NoteTabs } from "./note-tabs";
 import { PointSpendingDialog } from "./point-spending-dialog";
+import { toViewerFile } from "@/types/notes"; // Make sure this exists in your types file
 
 export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
   const router = useRouter();
@@ -16,11 +17,22 @@ export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
   const [hasViewed, setHasViewed] = useState(false);
   const [isAuthor, setIsAuthor] = useState(false);
   const [userPoints, setUserPoints] = useState<number | null>(null);
-  const [activeFile, setActiveFile] = useState<File | null>(null);
+  const [activeFile, setActiveFile] = useState<ViewerFile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userRating, setUserRating] = useState<number | null>(null);
   const [isRating, setIsRating] = useState(false);
   const initialDataFetched = useRef(false);
+
+  // Set initial active file when note data is available
+  useEffect(() => {
+    if (note?.files?.length > 0) {
+      const firstFile = note.files[0];
+      const viewerFile = toViewerFile(firstFile);
+      if (viewerFile) {
+        setActiveFile(viewerFile);
+      }
+    }
+  }, [note?.files]);
 
   // Effect for initial data fetch
   useEffect(() => {
@@ -122,6 +134,13 @@ export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
     }
   };
 
+  const handleFileChange = (file: NoteFile) => {
+    const viewerFile = toViewerFile(file);
+    if (viewerFile) {
+      setActiveFile(viewerFile);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
@@ -161,7 +180,7 @@ export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
             isAuthor={isAuthor}
             onRequestAccess={() => setShowPointDialog(true)}
             activeFile={activeFile}
-            onFileChange={setActiveFile}
+            onFileChange={handleFileChange}
           />
         </Card>
 
