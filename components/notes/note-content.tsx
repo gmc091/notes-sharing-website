@@ -1,18 +1,14 @@
-// app/(authenticated)/note/[noteId]/note-viewer.tsx
-"use client";
-
+// components/notes/note-content.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-
-import { NoteViewerHeader } from "@/components/notes/note-viewer-header";
-import { NoteTabs } from "@/components/notes/note-tabs";
-import { PointSpendingDialog } from "@/components/notes/point-spending-dialog";
-import { toViewerFile } from "@/types/notes";
-import type { Note, ViewerFile } from "@/types/notes";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import type { Note } from "@/types/notes";
+import { NoteViewerHeader } from "./note-viewer-header";
+import { NoteTabs } from "./note-tabs";
+import { PointSpendingDialog } from "./point-spending-dialog";
 
 export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
   const router = useRouter();
@@ -20,20 +16,13 @@ export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
   const [hasViewed, setHasViewed] = useState(false);
   const [isAuthor, setIsAuthor] = useState(false);
   const [userPoints, setUserPoints] = useState<number | null>(null);
-  const [activeFile, setActiveFile] = useState<ViewerFile | null>(null);
+  const [activeFile, setActiveFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userRating, setUserRating] = useState<number | null>(null);
   const [isRating, setIsRating] = useState(false);
   const initialDataFetched = useRef(false);
 
-  // Set initial active file when note data is available
-  useEffect(() => {
-    if (note?.files?.length > 0 && note.files[0].url) {
-      setActiveFile(toViewerFile(note.files[0]));
-    }
-  }, [note?.files]);
-
-  // Fetch initial data
+  // Effect for initial data fetch
   useEffect(() => {
     async function fetchInitialData() {
       if (initialDataFetched.current) return;

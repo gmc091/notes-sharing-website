@@ -1,5 +1,4 @@
 // components/user-button.tsx
-
 import { useClerk, useUser } from "@clerk/nextjs";
 import * as React from "react";
 import {
@@ -10,6 +9,7 @@ import {
   Trophy,
   History,
   Coins,
+  BookOpen,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Switch } from "@/components/ui/switch";
@@ -17,6 +17,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePointsContext } from "@/context/points-context";
 
 export function CustomUserButton() {
   const { user } = useUser();
@@ -24,31 +25,20 @@ export function CustomUserButton() {
   const [open, setOpen] = React.useState(false);
   const [imageError, setImageError] = React.useState(false);
   const [showInLeaderboard, setShowInLeaderboard] = React.useState(true);
-  const [points, setPoints] = React.useState<number | null>(null);
-  const [isLoadingPoints, setIsLoadingPoints] = React.useState(true);
+  const { points, isLoading: isLoadingPoints } = usePointsContext();
   const router = useRouter();
 
   React.useEffect(() => {
-    const fetchData = async () => {
+    const fetchPreferences = async () => {
       try {
-        const [prefsResponse, pointsResponse] = await Promise.all([
-          fetch("/api/user/preferences"),
-          fetch("/api/points"),
-        ]);
-        const [prefsData, pointsData] = await Promise.all([
-          prefsResponse.json(),
-          pointsResponse.json(),
-        ]);
-
+        const prefsResponse = await fetch("/api/user/preferences");
+        const prefsData = await prefsResponse.json();
         setShowInLeaderboard(prefsData.showInLeaderboard);
-        setPoints(pointsData.points);
       } catch (error) {
-        console.error("Error fetching user data:", error);
-      } finally {
-        setIsLoadingPoints(false);
+        console.error("Error fetching user preferences:", error);
       }
     };
-    fetchData();
+    fetchPreferences();
   }, []);
 
   const handleVisibilityChange = async (checked: boolean) => {
@@ -108,17 +98,26 @@ export function CustomUserButton() {
     );
   };
 
+  const PointsBadge = ({ className }: { className?: string }) => (
+    <div
+      className={cn(
+        "flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-full",
+        className
+      )}
+    >
+      <Coins className="h-4 w-4 text-primary" />
+      {isLoadingPoints ? (
+        <Skeleton className="h-4 w-12" />
+      ) : (
+        <span className="text-sm font-medium">{points ?? 0} punti</span>
+      )}
+    </div>
+  );
+
   return (
     <div className="flex items-center gap-3">
-      {/* Points Display */}
-      <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-full">
-        <Coins className="h-4 w-4 text-primary" />
-        {isLoadingPoints ? (
-          <Skeleton className="h-4 w-12" />
-        ) : (
-          <span className="text-sm font-medium">{points} punti</span>
-        )}
-      </div>
+      {/* Desktop Points Display */}
+      <PointsBadge className="hidden sm:flex" />
 
       <DropdownMenu.Root open={open} onOpenChange={setOpen}>
         <DropdownMenu.Trigger asChild>
@@ -155,13 +154,8 @@ export function CustomUserButton() {
                   {user.primaryEmailAddress?.emailAddress}
                 </p>
                 {/* Mobile Points Display */}
-                <div className="flex items-center gap-1 sm:hidden">
-                  <Coins className="h-3.5 w-3.5 text-primary" />
-                  {isLoadingPoints ? (
-                    <Skeleton className="h-4 w-12" />
-                  ) : (
-                    <span className="text-xs font-medium">{points} punti</span>
-                  )}
+                <div className="sm:hidden">
+                  <PointsBadge className="!px-0 !py-0 !bg-transparent" />
                 </div>
               </div>
             </div>
@@ -178,9 +172,20 @@ export function CustomUserButton() {
                 <span>Storico punti</span>
               </DropdownMenu.Item>
 
+              <DropdownMenu.Item
+                className="relative flex w-full cursor-default select-none items-center rounded-sm px-3 py-2 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                onSelect={() => {
+                  setOpen(false);
+                  router.push("/library");
+                }}
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                <span>La mia libreria</span>
+              </DropdownMenu.Item>
+
               <div className="flex items-center justify-between px-3 py-2 rounded-sm hover:bg-accent hover:text-accent-foreground">
                 <div className="flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-muted-foreground" />
+                  <Trophy className="mr-2 h-4 w-4" />
                   <span className="text-sm">Mostra nella classifica</span>
                 </div>
                 <Switch

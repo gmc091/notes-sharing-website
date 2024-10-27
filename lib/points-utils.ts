@@ -78,56 +78,118 @@ export async function handleNoteView(
   userId: string,
   noteId: number
 ): Promise<boolean> {
-  const note = await prisma.note.findUnique({
-    where: { id: noteId },
-    select: { userId: true, rating: true },
-  });
-
-  if (!note) return false;
-
-  // Use transaction properly
-  await prisma.$transaction(async (tx) => {
-    // Deduct point from viewer using tx
-    await tx.pointTransaction.create({
-      data: {
-        userId,
-        amount: -1,
-        type: "VIEW_SPENT",
-        description: `Viewed note #${noteId}`,
-      },
-    });
-
-    await tx.user.update({
-      where: { clerkId: userId },
-      data: {
-        points: { decrement: 1 },
-      },
-    });
-
-    // Award points to note owner (if not viewing their own note)
-    if (userId !== note.userId) {
-      // Calculate points to award based on rating
-      const pointsToAward = note.rating && note.rating >= 4 ? 2 : 1;
-
-      await tx.pointTransaction.create({
-        data: {
-          userId: note.userId,
-          amount: pointsToAward,
-          type: "VIEW_EARNED",
-          description: `Note #${noteId} was viewed`,
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Get note and current viewer's status
+      const note = await tx.note.findUnique({
+        where: { id: noteId },
+        select: {
+          userId: true,
+          rating: true,
+          viewCount: true,
+          views: {
+            where: {
+              userId,
+              hasPaid: true,
+            },
+          },
         },
       });
 
+      if (!note) return false;
+
+      // Check if user has already viewed
+      const hasViewed = note.views.length > 0;
+
+      // If it's the author's note or already viewed, just update the view timestamp
+      if (userId === note.userId || hasViewed) {
+        await tx.noteView.upsert({
+          where: {
+            noteId_userId: {
+              noteId,
+              userId,
+            },
+          },
+          create: {
+            noteId,
+            userId,
+            hasPaid: true,
+            viewedAt: new Date(),
+          },
+          update: {
+            viewedAt: new Date(),
+          },
+        });
+        return true;
+      }
+
+      // Check if user has enough points
+      const viewer = await tx.user.findUnique({
+        where: { clerkId: userId },
+        select: { points: true },
+      });
+
+      if (!viewer || viewer.points < 1) return false;
+
+      // Deduct point from viewer
       await tx.user.update({
-        where: { clerkId: note.userId },
+        where: { clerkId: userId },
         data: {
-          points: { increment: pointsToAward },
+          points: { decrement: 1 },
+          pointTransactions: {
+            create: {
+              amount: -1,
+              type: "VIEW_SPENT",
+              description: `Viewed note #${noteId}`,
+            },
+          },
         },
       });
-    }
-  });
 
-  return true;
+      // Record the view
+      await tx.noteView.create({
+        data: {
+          noteId,
+          userId,
+          hasPaid: true,
+          viewedAt: new Date(),
+        },
+      });
+
+      // Update note view count and award points to owner atomically
+      if (note.userId) {
+        const pointsToAward = note.rating && note.rating >= 4 ? 2 : 1;
+        await tx.user.update({
+          where: { clerkId: note.userId },
+          data: {
+            points: { increment: pointsToAward },
+            pointTransactions: {
+              create: {
+                amount: pointsToAward,
+                type: "VIEW_EARNED",
+                description: `Note #${noteId} was viewed`,
+              },
+            },
+          },
+        });
+      }
+
+      // Increment view count
+      await tx.note.update({
+        where: { id: noteId },
+        data: {
+          viewCount: { increment: 1 },
+        },
+      });
+
+      return true;
+    });
+
+    return result;
+  } catch (error) {
+    console.error("Error in handleNoteView:", error);
+    return false;
+  }
 }
 
 export async function handleNoteUpload(

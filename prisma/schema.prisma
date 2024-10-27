@@ -42,6 +42,7 @@ model NoteView {
   noteId    Int
   userId    String   // Clerk user ID
   viewedAt  DateTime @default(now())
+  hasPaid   Boolean  @default(false)  // Add this field
   note      Note     @relation(fields: [noteId], references: [id])
   user      User     @relation(fields: [userId], references: [clerkId])
 

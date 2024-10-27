@@ -1,136 +1,103 @@
 // lib/file-utils.ts
+import type { LucideIcon } from "lucide-react";
+import type { BadgeProps } from "@/components/ui/badge";
+import {
+  FileText,
+  FileSpreadsheet,
+  FileCode,
+  FileVideo,
+  FileAudio,
+  ImageIcon,
+  File,
+} from "lucide-react";
 
-import path from "path";
+type BadgeVariant = NonNullable<BadgeProps["variant"]>;
 
-interface FileNamingResult {
-  key: string; // Full path in storage (e.g., "notes/123/filename.pdf")
-  originalName: string; // Original filename for reference
-  storageName: string; // Actual filename in storage
-}
+type FileTypeInfo = {
+  icon: LucideIcon;
+  color: string;
+  variant: BadgeVariant;
+};
 
-/**
- * Sanitizes a filename to ensure it's safe for storage while preserving readability
- */
-export function sanitizeFilename(filename: string): string {
-  // Get the file extension and base name
-  const ext = path.extname(filename);
-  const baseName = path.basename(filename, ext);
+export const fileTypeChecks = {
+  isOfficeFile: (filename: string): boolean => {
+    const ext = getFileExtension(filename);
+    return ["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext);
+  },
 
+  isPreviewableImage: (filename: string): boolean => {
+    const ext = getFileExtension(filename);
+    return ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
+  },
+
+  isPDF: (filename: string): boolean => {
+    return getFileExtension(filename) === "pdf";
+  },
+};
+
+export const fileTypeConfig = new Map<string, FileTypeInfo>([
+  ["pdf", { icon: FileText, color: "text-red-500", variant: "pdf" }],
+  ["doc", { icon: FileText, color: "text-blue-500", variant: "document" }],
+  ["docx", { icon: FileText, color: "text-blue-500", variant: "document" }],
+  ["txt", { icon: FileText, color: "text-gray-500", variant: "document" }],
+  [
+    "xls",
+    { icon: FileSpreadsheet, color: "text-green-500", variant: "spreadsheet" },
+  ],
+  [
+    "xlsx",
+    { icon: FileSpreadsheet, color: "text-green-500", variant: "spreadsheet" },
+  ],
+  ["jpg", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
+  ["jpeg", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
+  ["png", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
+  ["gif", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
+  ["webp", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
+  ["json", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
+  ["js", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
+  ["css", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
+  ["html", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
+  ["mp4", { icon: FileVideo, color: "text-pink-500", variant: "media" }],
+  ["mp3", { icon: FileAudio, color: "text-pink-500", variant: "media" }],
+]);
+
+export const getFileExtension = (filename: string): string => {
+  return filename.split(".").pop()?.toLowerCase() || "";
+};
+
+export const getCleanFileName = (filePath: string): string => {
+  const nameWithExt = filePath.split("/").pop() || filePath;
+  return decodeURIComponent(nameWithExt);
+};
+
+export const getFileTypeInfo = (filename: string): FileTypeInfo => {
+  const ext = getFileExtension(filename);
   return (
-    baseName
-      // Convert to lowercase for consistency
-      .toLowerCase()
-      // Replace spaces and special chars with hyphens
-      .replace(/[^a-z0-9]+/g, "-")
-      // Remove starting/ending hyphens
-      .replace(/^-+|-+$/g, "")
-      // Limit length of base name
-      .slice(0, 50) + ext.toLowerCase()
+    fileTypeConfig.get(ext) || {
+      icon: File,
+      color: "text-gray-500",
+      variant: "secondary",
+    }
   );
-}
+};
 
-/**
- * Generates a unique filename while preserving the original name
- * @param originalFilename The original filename from the user
- * @param noteId The ID of the note this file belongs to
- * @param existingFiles Array of existing filenames in the same directory (for duplicate checking)
- */
-export function generateUniqueFilename(
-  originalFilename: string,
-  noteId: number,
-  existingFiles: string[] = []
-): FileNamingResult {
-  // First, sanitize the filename
-  const sanitized = sanitizeFilename(originalFilename);
-  const ext = path.extname(sanitized);
-  const baseName = path.basename(sanitized, ext);
-
-  // Function to check if a filename already exists
-  const isDuplicate = (name: string) =>
-    existingFiles.includes(`notes/${noteId}/${name}`);
-
-  // If no duplicate, use the sanitized name directly
-  if (!isDuplicate(sanitized)) {
-    return {
-      key: `notes/${noteId}/${sanitized}`,
-      originalName: originalFilename,
-      storageName: sanitized,
-    };
-  }
-
-  // Handle duplicates by adding a counter
-  let counter = 1;
-  let uniqueName = `${baseName}-${counter}${ext}`;
-
-  while (isDuplicate(uniqueName)) {
-    counter++;
-    uniqueName = `${baseName}-${counter}${ext}`;
-  }
-
-  return {
-    key: `notes/${noteId}/${uniqueName}`,
-    originalName: originalFilename,
-    storageName: uniqueName,
-  };
-}
-
-/**
- * Validates a filename against security and system constraints
- */
-export function validateFilename(filename: string): boolean {
-  // Check for null bytes (security risk)
-  if (filename.includes("\0")) return false;
-
-  // Check minimum and maximum length
-  if (filename.length < 1 || filename.length > 255) return false;
-
-  // Check for prohibited characters and patterns
-  const prohibitedPattern = /^\.|\.\.|\/|\\|[:*?"<>|]/;
-  if (prohibitedPattern.test(filename)) return false;
-
-  return true;
-}
-
-/**
- * Extracts metadata from a filename
- */
-export function extractFileMetadata(filename: string) {
-  const ext = path.extname(filename).toLowerCase();
-
-  // Map common extensions to friendly type names
-  const typeMap: Record<string, string> = {
-    ".pdf": "PDF Document",
-    ".doc": "Word Document",
-    ".docx": "Word Document",
-    ".txt": "Text File",
-    ".jpg": "Image",
-    ".jpeg": "Image",
-    ".png": "Image",
-    // Add more as needed
-  };
-
-  return {
-    extension: ext,
-    type: typeMap[ext] || "Unknown Type",
-    baseName: path.basename(filename, ext),
-  };
-}
-
-/**
- * Gets a display name for a file (potentially shorter version for UI)
- */
-export function getDisplayFilename(
+// Function to truncate filenames with ellipsis
+export const getDisplayFilename = (
   filename: string,
-  maxLength: number = 30
-): string {
+  maxLength: number
+): string => {
   if (filename.length <= maxLength) return filename;
 
-  const ext = path.extname(filename);
-  const baseName = path.basename(filename, ext);
+  const ext = getFileExtension(filename);
+  const nameWithoutExt = filename.slice(0, -(ext.length + 1)); // +1 for the dot
 
-  // Calculate how much of the base name we can show
-  const maxBaseLength = maxLength - ext.length - 3; // 3 for the ellipsis
-  const truncatedBase = baseName.slice(0, maxBaseLength);
-
-  return `${truncatedBase}...${ext}`;
-}
+  if (ext) {
+    // Reserve characters for the extension (including the dot) and ellipsis
+    const maxNameLength = maxLength - ext.length - 4; // 4 = length of "..." + "."
+    if (maxNameLength < 3) return filename.slice(0, maxLength - 3) + "...";
+    return nameWithoutExt.slice(0, maxNameLength) + "..." + "." + ext;
+  } else {
+    // No extension, just truncate and add ellipsis
+    return filename.slice(0, maxLength - 3) + "...";
+  }
+};

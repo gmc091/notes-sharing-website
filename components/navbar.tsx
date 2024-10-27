@@ -10,6 +10,7 @@ import {
   UserPlus,
   LogOut,
   User as UserIcon,
+  Coins,
 } from "lucide-react";
 import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { useState } from "react";
@@ -31,6 +32,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { CustomUserButton } from "./user-button";
+import { Skeleton } from "./ui/skeleton";
+import { usePointsContext } from "@/context/points-context";
 
 const schoolTypes = [
   {
@@ -95,6 +98,7 @@ export function Navbar() {
   const { signOut, openUserProfile } = useClerk();
   const router = useRouter();
   const pathname = usePathname();
+  const { points, isLoading: isLoadingPoints } = usePointsContext();
 
   const handleExpand = (index: number) => {
     setExpandedSection((prev) => (prev === index ? null : index));
@@ -129,6 +133,17 @@ export function Navbar() {
     setIsSheetOpen(false);
   };
 
+  const PointsDisplay = ({ className = "" }) => (
+    <div className={`flex items-center gap-2 ${className}`}>
+      <Coins className="h-4 w-4 text-primary" />
+      {isLoadingPoints ? (
+        <Skeleton className="h-4 w-12" />
+      ) : (
+        <span className="text-sm font-medium">{points ?? 0} punti</span>
+      )}
+    </div>
+  );
+
   const AuthButtons = ({ isMobile = false }) => {
     if (!isMobile) {
       return isSignedIn ? (
@@ -160,23 +175,27 @@ export function Navbar() {
     if (isSignedIn && user) {
       return (
         <div className="border-t p-4">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="relative h-10 w-10">
-              <img
-                src={user.imageUrl}
-                alt={user.fullName || "User avatar"}
-                className="h-full w-full rounded-full object-cover"
-              />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <div className="relative h-10 w-10">
+                <img
+                  src={user.imageUrl}
+                  alt={user.fullName || "User avatar"}
+                  className="h-full w-full rounded-full object-cover"
+                />
+              </div>
+              <div className="flex flex-col">
+                <p className="text-sm font-medium">
+                  {user.fullName || user.username}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {user.primaryEmailAddress?.emailAddress}
+                </p>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <p className="text-sm font-medium">
-                {user.fullName || user.username}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {user.primaryEmailAddress?.emailAddress}
-              </p>
-            </div>
+            <PointsDisplay className="bg-primary/5 px-2 py-1 rounded-full" />
           </div>
+
           <div className="space-y-2">
             <Button
               variant="outline"
