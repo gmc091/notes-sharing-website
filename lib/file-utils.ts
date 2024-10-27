@@ -19,33 +19,12 @@ type FileTypeInfo = {
   variant: BadgeVariant;
 };
 
-export const fileTypeConfig = new Map<string, FileTypeInfo>([
-  ["pdf", { icon: FileText, color: "text-red-500", variant: "pdf" }],
-  ["doc", { icon: FileText, color: "text-blue-500", variant: "document" }],
-  ["docx", { icon: FileText, color: "text-blue-500", variant: "document" }],
-  ["txt", { icon: FileText, color: "text-gray-500", variant: "document" }],
-  [
-    "xls",
-    { icon: FileSpreadsheet, color: "text-green-500", variant: "spreadsheet" },
-  ],
-  [
-    "xlsx",
-    { icon: FileSpreadsheet, color: "text-green-500", variant: "spreadsheet" },
-  ],
-  ["jpg", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
-  ["jpeg", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
-  ["png", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
-  ["gif", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
-  ["webp", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
-  ["json", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
-  ["js", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
-  ["css", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
-  ["html", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
-  ["mp4", { icon: FileVideo, color: "text-pink-500", variant: "media" }],
-  ["mp3", { icon: FileAudio, color: "text-pink-500", variant: "media" }],
-]);
+interface FileNaming {
+  originalName: string;
+  key: string;
+}
 
-// Filename validation constants
+// Constants
 const MAX_FILENAME_LENGTH = 255;
 const INVALID_CHARS_REGEX = /[<>:"/\\|?*\x00-\x1F]/g;
 const RESERVED_FILENAMES = new Set([
@@ -73,68 +52,53 @@ const RESERVED_FILENAMES = new Set([
   "LPT9",
 ]);
 
-export const validateFilename = (
-  filename: string
-): { isValid: boolean; error?: string } => {
-  // Check for empty filename
-  if (!filename || filename.trim().length === 0) {
-    return { isValid: false, error: "Il nome del file non può essere vuoto" };
-  }
+// File Types Configuration
+export const fileTypeConfig = new Map<string, FileTypeInfo>([
+  ["pdf", { icon: FileText, color: "text-red-500", variant: "pdf" }],
+  ["doc", { icon: FileText, color: "text-blue-500", variant: "document" }],
+  ["docx", { icon: FileText, color: "text-blue-500", variant: "document" }],
+  ["txt", { icon: FileText, color: "text-gray-500", variant: "document" }],
+  [
+    "xls",
+    { icon: FileSpreadsheet, color: "text-green-500", variant: "spreadsheet" },
+  ],
+  [
+    "xlsx",
+    { icon: FileSpreadsheet, color: "text-green-500", variant: "spreadsheet" },
+  ],
+  ["ppt", { icon: FileText, color: "text-orange-500", variant: "document" }],
+  ["pptx", { icon: FileText, color: "text-orange-500", variant: "document" }],
+  ["jpg", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
+  ["jpeg", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
+  ["png", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
+  ["gif", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
+  ["webp", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
+  ["json", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
+  ["js", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
+  ["css", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
+  ["html", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
+  ["mp4", { icon: FileVideo, color: "text-pink-500", variant: "media" }],
+  ["mp3", { icon: FileAudio, color: "text-pink-500", variant: "media" }],
+]);
 
-  // Check filename length
-  if (filename.length > MAX_FILENAME_LENGTH) {
-    return {
-      isValid: false,
-      error: `Il nome del file non può superare i ${MAX_FILENAME_LENGTH} caratteri`,
-    };
-  }
+// File Type Checks
+export const fileTypeChecks = {
+  isOfficeFile: (filename: string): boolean => {
+    const ext = getFileExtension(filename);
+    return ["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext);
+  },
 
-  // Check for invalid characters
-  if (INVALID_CHARS_REGEX.test(filename)) {
-    return {
-      isValid: false,
-      error: "Il nome del file contiene caratteri non validi",
-    };
-  }
+  isPreviewableImage: (filename: string): boolean => {
+    const ext = getFileExtension(filename);
+    return ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
+  },
 
-  // Check for reserved names (Windows)
-  const nameWithoutExt = filename.split(".")[0].toUpperCase();
-  if (RESERVED_FILENAMES.has(nameWithoutExt)) {
-    return {
-      isValid: false,
-      error: "Il nome del file non può essere un nome riservato di sistema",
-    };
-  }
-
-  return { isValid: true };
+  isPDF: (filename: string): boolean => {
+    return getFileExtension(filename) === "pdf";
+  },
 };
 
-export const generateUniqueFilename = (
-  originalFilename: string,
-  existingFiles: string[] = []
-): string => {
-  const ext = getFileExtension(originalFilename);
-  const nameWithoutExt = originalFilename.slice(0, -(ext.length + 1));
-  let newFilename = originalFilename;
-  let counter = 1;
-
-  while (existingFiles.includes(newFilename)) {
-    newFilename = ext
-      ? `${nameWithoutExt} (${counter}).${ext}`
-      : `${originalFilename} (${counter})`;
-    counter++;
-  }
-
-  return newFilename;
-};
-
-export const sanitizeFilename = (filename: string): string => {
-  return filename
-    .replace(INVALID_CHARS_REGEX, "_") // Replace invalid chars with underscore
-    .replace(/\s+/g, " ") // Replace multiple spaces with single space
-    .trim();
-};
-
+// Basic File Operations
 export const getFileExtension = (filename: string): string => {
   return filename.split(".").pop()?.toLowerCase() || "";
 };
@@ -151,10 +115,10 @@ export const getDisplayFilename = (
   if (filename.length <= maxLength) return filename;
 
   const ext = getFileExtension(filename);
-  const nameWithoutExt = filename.slice(0, -(ext.length + 1));
+  const nameWithoutExt = filename.slice(0, -(ext.length + 1)); // +1 for the dot
 
   if (ext) {
-    const maxNameLength = maxLength - ext.length - 4;
+    const maxNameLength = maxLength - ext.length - 4; // 4 = length of "..." + "."
     if (maxNameLength < 3) return filename.slice(0, maxLength - 3) + "...";
     return nameWithoutExt.slice(0, maxNameLength) + "..." + "." + ext;
   }
@@ -173,18 +137,82 @@ export const getFileTypeInfo = (filename: string): FileTypeInfo => {
   );
 };
 
-export const fileTypeChecks = {
-  isOfficeFile: (filename: string): boolean => {
-    const ext = getFileExtension(filename);
-    return ["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext);
-  },
+// Filename Validation and Generation
+export const validateFilename = (filename: string): boolean => {
+  // Check for empty filename
+  if (!filename || filename.trim().length === 0) {
+    return false;
+  }
 
-  isPreviewableImage: (filename: string): boolean => {
-    const ext = getFileExtension(filename);
-    return ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
-  },
+  // Check filename length
+  if (filename.length > MAX_FILENAME_LENGTH) {
+    return false;
+  }
 
-  isPDF: (filename: string): boolean => {
-    return getFileExtension(filename) === "pdf";
-  },
+  // Check for invalid characters
+  if (INVALID_CHARS_REGEX.test(filename)) {
+    return false;
+  }
+
+  // Check for reserved names (Windows)
+  const nameWithoutExt = filename.split(".")[0].toUpperCase();
+  if (RESERVED_FILENAMES.has(nameWithoutExt)) {
+    return false;
+  }
+
+  return true;
+};
+
+export const sanitizeFilename = (filename: string): string => {
+  return filename
+    .replace(INVALID_CHARS_REGEX, "_") // Replace invalid chars with underscore
+    .replace(/\s+/g, " ") // Replace multiple spaces with single space
+    .trim();
+};
+
+export const generateUniqueFilename = (
+  originalFilename: string,
+  noteId: number,
+  existingFiles: string[] = []
+): FileNaming => {
+  const sanitizedName = sanitizeFilename(originalFilename);
+  const ext = getFileExtension(sanitizedName);
+  const nameWithoutExt = sanitizedName.slice(0, -(ext.length + 1));
+
+  // Create base path with note ID
+  const basePath = `notes/${noteId}`;
+
+  // Function to generate numbered filename if needed
+  const generateNumberedName = (counter: number): string => {
+    const numbered =
+      counter === 0
+        ? sanitizedName
+        : ext
+        ? `${nameWithoutExt} (${counter}).${ext}`
+        : `${sanitizedName} (${counter})`;
+    return `${basePath}/${numbered}`;
+  };
+
+  // Find unique key
+  let counter = 0;
+  let key = generateNumberedName(counter);
+
+  while (existingFiles.includes(key)) {
+    counter++;
+    key = generateNumberedName(counter);
+  }
+
+  return {
+    originalName: sanitizedName,
+    key: key,
+  };
+};
+
+// Helper Functions
+export const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
