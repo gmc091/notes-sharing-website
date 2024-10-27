@@ -1,4 +1,5 @@
 // types/notes.ts
+
 export interface NoteFile {
   key: string;
   name: string;
@@ -7,7 +8,6 @@ export interface NoteFile {
   url?: string;
 }
 
-// Renamed from File to ViewerFile to avoid conflicts
 export interface ViewerFile {
   key: string;
   url: string;
@@ -40,15 +40,11 @@ export interface LibraryNote extends Note {
   purchasedAt: string;
 }
 
-// Updated utility functions
-export function toViewerFile(noteFile: NoteFile): ViewerFile {
-  if (!noteFile.url) {
-    throw new Error("NoteFile must have a URL to be converted to ViewerFile");
-  }
-
+export const toViewerFile = (file: NoteFile): ViewerFile | null => {
+  if (!file.url) return null;
   return {
-    key: noteFile.key,
-    url: noteFile.url,
-    size: noteFile.size,
+    key: file.key,
+    url: file.url,
+    size: file.size,
   };
-}
+};

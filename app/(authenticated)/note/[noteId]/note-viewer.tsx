@@ -1,7 +1,7 @@
 // app/(authenticated)/note/[noteId]/note-viewer.tsx
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -11,10 +11,22 @@ import { toast } from "sonner";
 import { NoteViewerHeader } from "@/components/notes/note-viewer-header";
 import { NoteTabs } from "@/components/notes/note-tabs";
 import { PointSpendingDialog } from "@/components/notes/point-spending-dialog";
-import { toViewerFile } from "@/types/notes";
-import type { Note, ViewerFile } from "@/types/notes";
+import type { Note, NoteFile, ViewerFile } from "@/types/notes";
 
-export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
+const toViewerFile = (file: NoteFile): ViewerFile | null => {
+  if (!file.url) return null;
+  return {
+    key: file.key,
+    url: file.url,
+    size: file.size,
+  };
+};
+
+export interface NoteViewerProps {
+  note: Note;
+}
+
+export const NoteViewer: React.FC<NoteViewerProps> = ({ note }) => {
   const router = useRouter();
   const [showPointDialog, setShowPointDialog] = useState(false);
   const [hasViewed, setHasViewed] = useState(false);
@@ -28,8 +40,12 @@ export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
 
   // Set initial active file when note data is available
   useEffect(() => {
-    if (note?.files?.length > 0 && note.files[0].url) {
-      setActiveFile(toViewerFile(note.files[0]));
+    if (note?.files?.length > 0) {
+      const firstFile = note.files[0];
+      const viewerFile = toViewerFile(firstFile);
+      if (viewerFile) {
+        setActiveFile(viewerFile);
+      }
     }
   }, [note?.files]);
 
@@ -94,7 +110,8 @@ export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
         throw new Error("Failed to spend point");
       }
 
-      const pointsData = await (await fetch("/api/points")).json();
+      const pointsRes = await fetch("/api/points");
+      const pointsData = await pointsRes.json();
 
       setShowPointDialog(false);
       setHasViewed(true);
@@ -120,7 +137,9 @@ export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
         body: JSON.stringify({ rating }),
       });
 
-      if (!res.ok) throw new Error("Failed to submit rating");
+      if (!res.ok) {
+        throw new Error("Failed to submit rating");
+      }
 
       setUserRating(rating);
       toast.success("Valutazione salvata con successo!");
@@ -132,6 +151,13 @@ export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
       setIsRating(false);
     }
   };
+
+  const handleFileChange = useCallback((file: NoteFile) => {
+    const viewerFile = toViewerFile(file);
+    if (viewerFile) {
+      setActiveFile(viewerFile);
+    }
+  }, []);
 
   if (isLoading) {
     return (
@@ -172,7 +198,7 @@ export const NoteViewer: React.FC<{ note: Note }> = ({ note }) => {
             isAuthor={isAuthor}
             onRequestAccess={() => setShowPointDialog(true)}
             activeFile={activeFile}
-            onFileChange={setActiveFile}
+            onFileChange={handleFileChange}
           />
         </Card>
 

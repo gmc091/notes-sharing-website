@@ -1,13 +1,13 @@
 // components/notes/note-tabs.tsx
-import React from "react";
+import React, { useState } from "react";
 import { CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import { FileViewer } from "./file-viewer";
 import { FileList } from "./file-list";
-import { ViewerFile, NoteFile, Note, toViewerFile } from "@/types/notes";
+import type { Note, NoteFile, ViewerFile } from "@/types/notes";
 import { getCleanFileName } from "@/lib/file-utils";
+import { toast } from "sonner";
 
 interface NoteTabsProps {
   note: Note;
@@ -15,7 +15,7 @@ interface NoteTabsProps {
   isAuthor: boolean;
   onRequestAccess: () => void;
   activeFile: ViewerFile | null;
-  onFileChange: (file: ViewerFile) => void;
+  onFileChange: (file: NoteFile) => void;
 }
 
 export const NoteTabs: React.FC<NoteTabsProps> = ({
@@ -26,7 +26,7 @@ export const NoteTabs: React.FC<NoteTabsProps> = ({
   activeFile,
   onFileChange,
 }) => {
-  const [activeTab, setActiveTab] = React.useState("viewer");
+  const [activeTab, setActiveTab] = useState("viewer");
   const isBlurred = !hasViewed && !isAuthor;
 
   const handleViewFile = (file: NoteFile) => {
@@ -34,9 +34,7 @@ export const NoteTabs: React.FC<NoteTabsProps> = ({
       onRequestAccess();
       return;
     }
-    if (file.url) {
-      onFileChange(toViewerFile(file));
-    }
+    onFileChange(file);
     setActiveTab("viewer");
   };
 

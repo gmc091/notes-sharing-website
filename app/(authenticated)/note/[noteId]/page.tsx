@@ -1,6 +1,6 @@
 // app/(authenticated)/note/[noteId]/page.tsx
 import React from "react";
-import { NoteViewer } from "./note-content";
+import { NoteViewer } from "./note-viewer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";

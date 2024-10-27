@@ -2,11 +2,11 @@
 import React from "react";
 import { FileIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { fileTypeChecks, getCleanFileName } from "@/lib/file-utils";
-import { ViewerFile } from "@/types/notes";
 import { PDFViewer } from "./pdf-viewer";
 import { ImageViewer } from "./image-viewer";
 import { OfficeViewer } from "./office-viewer";
+import { fileTypeChecks, getCleanFileName } from "@/lib/file-utils";
+import type { ViewerFile } from "@/types/notes";
 
 interface FileViewerProps {
   file: ViewerFile | null;
