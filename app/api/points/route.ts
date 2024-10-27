@@ -3,14 +3,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma"; // Updated import
 import {
   canUserViewNote,
   handleNoteView,
   handleNoteRating,
 } from "@/lib/points-utils";
-
-const prisma = new PrismaClient();
 
 // Schema for the rating request
 const rateNoteSchema = z.object({

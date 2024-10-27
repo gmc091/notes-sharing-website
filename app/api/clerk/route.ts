@@ -3,11 +3,9 @@
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { WebhookEvent } from "@clerk/nextjs/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
-const prisma = new PrismaClient();
-
-// These should match the webhook secrets you set in your Clerk Dashboard
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
 async function validateRequest(request: Request) {
@@ -58,27 +56,47 @@ export async function POST(request: Request) {
     const eventType = evt.type;
 
     if (eventType === "user.created") {
-      // Initialize user with 5 points when they sign up
       const { id: userId } = evt.data;
 
-      await prisma.user.create({
-        data: {
-          clerkId: userId,
-          points: 5,
-          showInLeaderboard: true,
-        },
-      });
+      try {
+        await prisma.user.create({
+          data: {
+            clerkId: userId,
+            points: 5,
+            showInLeaderboard: true,
+          },
+        });
+      } catch (error) {
+        // Check if error is a Prisma error
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+          // If user already exists (unique constraint violation), ignore the error
+          if (error.code === "P2002") {
+            return new Response("User already exists", { status: 200 });
+          }
+        }
+        throw error;
+      }
 
       return new Response("User initialized with points", { status: 200 });
     }
 
     if (eventType === "user.deleted") {
-      // Clean up user data when they delete their account
       const { id: userId } = evt.data;
 
-      await prisma.user.delete({
-        where: { clerkId: userId },
-      });
+      try {
+        await prisma.user.delete({
+          where: { clerkId: userId },
+        });
+      } catch (error) {
+        // Check if error is a Prisma error
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+          // If user doesn't exist, ignore the error
+          if (error.code === "P2025") {
+            return new Response("User already deleted", { status: 200 });
+          }
+        }
+        throw error;
+      }
 
       return new Response("User deleted", { status: 200 });
     }
@@ -86,8 +104,19 @@ export async function POST(request: Request) {
     return new Response("Webhook processed", { status: 200 });
   } catch (error) {
     console.error("Error processing webhook:", error);
-    return new Response("Error processing webhook", { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+
+    // Properly type the error message
+    let errorMessage = "Error processing webhook";
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
   }
 }

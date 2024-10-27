@@ -1,9 +1,7 @@
 // app/api/leaderboard/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import { auth, clerkClient, type User } from "@clerk/nextjs/server";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma"; // Updated import
 
 export async function GET() {
   try {

@@ -1,13 +1,11 @@
 // app/api/notes/[noteId]/route.ts
 
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma"; // Updated import
 import { z } from "zod";
 import { getR2FileMetadata, generateSignedUrl } from "@/lib/r2";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { canUserViewNote } from "@/lib/points-utils";
-
-const prisma = new PrismaClient();
 
 const paramsSchema = z.object({
   noteId: z.coerce.number().positive(),

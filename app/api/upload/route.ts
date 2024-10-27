@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma"; // Updated import
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 import { generateUniqueFilename, validateFilename } from "@/lib/file-utils";
 import { auth } from "@clerk/nextjs/server";
 import { handleNoteUpload } from "@/lib/points-utils";
-
-const prisma = new PrismaClient();
 
 // Initialize S3 client with Cloudflare R2 credentials
 const r2Client = new S3Client({

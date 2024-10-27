@@ -1,10 +1,8 @@
 // app/api/points/history/route.ts
 
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import { auth } from "@clerk/nextjs/server";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma"; // Updated import
 
 export async function GET() {
   try {

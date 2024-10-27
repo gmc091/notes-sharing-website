@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { clerkClient, type User } from "@clerk/nextjs/server";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma"; // Updated import
 
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
