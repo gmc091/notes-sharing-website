@@ -39,7 +39,7 @@ const getClerkUsers = cache(async (userIds: string[]) => {
 });
 
 // GET handler for the leaderboard endpoint
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const { userId: currentUserId } = auth();
 
@@ -79,8 +79,7 @@ export async function GET(req: Request) {
       const clerkUser = clerkUsers.find((cu) => cu.id === user.clerkId);
       return {
         id: user.clerkId,
-        username:
-          clerkUser?.username || clerkUser?.firstName || "Anonymous User",
+        username: clerkUser?.username || "Anonymous User",
         noteCount: user._count.notes,
         isCurrentUser: user.clerkId === currentUserId,
       };
