@@ -12,6 +12,13 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, LogIn, UserPlus, LogOut, Mail } from "lucide-react";
 import { SignInButton, SignUpButton, SignOutButton } from "@clerk/nextjs";
 
+const AUTHORIZED_EMAILS = [
+  "@liceoaprosio.it",
+  "appunti.liceo.aprosio@gmail.com",
+  "giovanni.croese.max@gmail.com",
+  "reggia.dev@gmail.com",
+];
+
 export default function AuthWrapper({
   children,
 }: {
@@ -19,15 +26,19 @@ export default function AuthWrapper({
 }) {
   const { user } = useUser();
   const userEmail = user?.primaryEmailAddress?.emailAddress;
-  const isAuthorized = userEmail?.endsWith("@liceoaprosio.it");
+  const isAuthorized = userEmail
+    ? AUTHORIZED_EMAILS.some(
+        (email) => userEmail.endsWith(email) || userEmail === email
+      )
+    : false;
 
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4">
         <div className="w-full max-w-2xl relative">
-          {/* Decorative blur effect elements */}
+          {/* Decorative gradient elements */}
           <div
-            className="absolute inset-0 -z-10 transform-gpu overflow-hidden blur-3xl"
+            className="absolute inset-0 -z-10 transform-gpu overflow-hidden"
             aria-hidden="true"
           >
             <div
@@ -39,7 +50,7 @@ export default function AuthWrapper({
             />
           </div>
 
-          <Card className="w-full backdrop-blur-sm bg-white/80 border shadow-lg">
+          <Card className="w-full bg-white border shadow-lg">
             <CardHeader className="space-y-1 text-center pb-0">
               <CardTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 text-transparent bg-clip-text">
                 Appunti Liceo Aprosio
@@ -53,7 +64,7 @@ export default function AuthWrapper({
                 <SignInButton mode="modal" fallbackRedirectUrl="/">
                   <Button
                     variant="outline"
-                    className="w-full justify-center h-11 text-base hover:bg-gray-50/50"
+                    className="w-full justify-center h-11 text-base hover:bg-gray-50"
                   >
                     <LogIn className="mr-2 h-5 w-5" />
                     Accedi
@@ -79,7 +90,7 @@ export default function AuthWrapper({
                   </div>
                 </div>
 
-                <div className="rounded-lg bg-blue-50/50 p-4 backdrop-blur-sm border border-blue-100">
+                <div className="rounded-lg bg-blue-50 p-4 border border-blue-100">
                   <div className="flex">
                     <div className="flex-shrink-0">
                       <Mail
@@ -99,9 +110,9 @@ export default function AuthWrapper({
             </CardContent>
           </Card>
 
-          {/* Second blur effect */}
+          {/* Second gradient effect */}
           <div
-            className="absolute inset-0 -z-10 transform-gpu overflow-hidden blur-3xl"
+            className="absolute inset-0 -z-10 transform-gpu overflow-hidden"
             aria-hidden="true"
           >
             <div
@@ -121,9 +132,9 @@ export default function AuthWrapper({
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4">
         <div className="w-full max-w-2xl">
-          <Card className="w-full border bg-white/80 backdrop-blur-sm shadow-lg">
+          <Card className="w-full border bg-white shadow-lg">
             <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
-              <div className="w-16 h-16 bg-red-100/50 backdrop-blur-sm rounded-full flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
                 <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
               <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900">
@@ -136,7 +147,7 @@ export default function AuthWrapper({
                   Ci dispiace, ma questa piattaforma è riservata agli studenti
                   del Liceo Aprosio.
                 </p>
-                <div className="bg-red-50/50 backdrop-blur-sm p-6 rounded-lg border border-red-100">
+                <div className="bg-red-50 p-6 rounded-lg border border-red-100">
                   <p className="text-base text-red-600">
                     Account attuale:{" "}
                     <span className="font-semibold">{userEmail}</span>
