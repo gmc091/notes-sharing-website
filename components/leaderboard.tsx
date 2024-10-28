@@ -85,7 +85,7 @@ export function Leaderboard() {
 
   const fetchLeaderboard = useCallback(async () => {
     try {
-      const response = await fetch("/api/v1/users/leaderboard/route.ts");
+      const response = await fetch("/api/v1/users/leaderboard");
       if (!response.ok) throw new Error("Failed to fetch leaderboard");
 
       const data = await response.json();
