@@ -51,10 +51,6 @@ const transactionTypeConfig: Record<
     label: "Bonus mensile",
     variant: "secondary",
   },
-  RATING_BONUS: {
-    label: "Bonus valutazione",
-    variant: "secondary",
-  },
 };
 
 export default function PointsHistoryPage() {

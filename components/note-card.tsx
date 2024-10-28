@@ -17,7 +17,6 @@ import {
   ChevronRight,
   FileText,
   Clock,
-  Star,
   Eye,
   Coins,
   Check,
@@ -60,11 +59,6 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
     minute: "2-digit",
   });
 
-  // Format rating
-  const rating = note.rating || 0;
-  const formattedRating = rating.toFixed(1);
-  const ratingColor = rating >= 4 ? "text-yellow-500" : "text-muted-foreground";
-
   return (
     <Card className="group flex flex-col h-full transition-all duration-300 bg-card hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border">
       <CardHeader className="space-y-3 pb-3">
@@ -90,49 +84,27 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            {/* Views */}
+            {/* Purchase Count */}
             <Tooltip>
               <TooltipTrigger className="flex items-center gap-1 text-sm text-muted-foreground">
                 <Eye className="h-4 w-4" />
-                <span>{note.viewCount}</span>
+                <span>{note.purchaseCount || 0}</span>
               </TooltipTrigger>
               <TooltipContent>
-                {note.viewCount}{" "}
-                {note.viewCount === 1 ? "visualizzazione" : "visualizzazioni"}
+                {note.purchaseCount}{" "}
+                {note.purchaseCount === 1 ? "acquisto" : "acquisti"}
               </TooltipContent>
             </Tooltip>
-
-            {/* Rating */}
-            {note.ratingCount > 0 && (
-              <Tooltip>
-                <TooltipTrigger className="flex items-center gap-1 text-sm">
-                  <Star
-                    className={`h-4 w-4 ${ratingColor}`}
-                    fill="currentColor"
-                  />
-                  <span className={ratingColor}>{formattedRating}</span>
-                  <span className="text-xs text-muted-foreground ml-1">
-                    ({note.ratingCount})
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {formattedRating} su 5 stelle
-                  <br />
-                  {note.ratingCount}{" "}
-                  {note.ratingCount === 1 ? "recensione" : "recensioni"}
-                </TooltipContent>
-              </Tooltip>
-            )}
           </div>
 
           {/* Access Status Indicator */}
           <Tooltip>
             <TooltipTrigger>
               <Badge
-                variant={note.hasViewed ? "secondary" : "outline"}
+                variant={note.isPurchased ? "secondary" : "outline"}
                 className="gap-1"
               >
-                {note.hasViewed ? (
+                {note.isPurchased ? (
                   <>
                     <Check className="h-3 w-3" />
                     <span>Disponibile</span>
@@ -146,9 +118,9 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              {note.hasViewed
+              {note.isPurchased
                 ? "Hai già accesso a questo appunto"
-                : "Costa 1 punto visualizzare questo appunto"}
+                : "Costa 1 punto acquistare questo appunto"}
             </TooltipContent>
           </Tooltip>
         </div>
@@ -218,14 +190,14 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
             href={`/note/${note.id}`}
             className="flex items-center justify-center gap-2"
           >
-            {note.hasViewed ? (
+            {note.isPurchased ? (
               <>
                 <span className="font-medium">Apri appunto</span>
                 <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </>
             ) : (
               <>
-                <span className="font-medium">Visualizza</span>
+                <span className="font-medium">Acquista</span>
                 <Coins className="h-4 w-4" />
               </>
             )}
