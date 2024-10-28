@@ -1,4 +1,4 @@
-// app/api/webhooks/clerk/route.ts
+// app/api/v1/webhooks/clerk/route.ts
 
 import { Webhook } from "svix";
 import { headers } from "next/headers";

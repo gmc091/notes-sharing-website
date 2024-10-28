@@ -66,7 +66,7 @@ export default function LibraryPage() {
   useEffect(() => {
     const fetchLibrary = async () => {
       try {
-        const response = await fetch("/api/library");
+        const response = await fetch("/api/v1/users/me/library");
         if (!response.ok) throw new Error("Failed to fetch library");
 
         const data = await response.json();

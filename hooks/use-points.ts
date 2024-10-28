@@ -9,7 +9,7 @@ export function usePoints() {
 
   const fetchPoints = useCallback(async () => {
     try {
-      const res = await fetch("/api/points");
+      const res = await fetch("/api/v1/users/me/points");
       if (!res.ok) throw new Error("Failed to fetch points");
       const data = await res.json();
       setPoints(data.points);
@@ -26,7 +26,7 @@ export function usePoints() {
 
   const spendPoints = useCallback(async (amount: number, noteId: number) => {
     try {
-      const res = await fetch("/api/points", {
+      const res = await fetch("/api/v1/users/me/points", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

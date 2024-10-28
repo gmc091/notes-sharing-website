@@ -87,7 +87,7 @@ export default function Home() {
         );
         selectedYears.forEach((year) => params.append("years", year));
 
-        const response = await fetch(`/api/notes?${params.toString()}`);
+        const response = await fetch(`api/v1/notes?${params.toString()}`);
         if (!response.ok) throw new Error("Failed to fetch notes");
 
         const data: NotesApiResponse = await response.json();

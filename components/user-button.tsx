@@ -31,7 +31,7 @@ export function CustomUserButton() {
   React.useEffect(() => {
     const fetchPreferences = async () => {
       try {
-        const prefsResponse = await fetch("/api/user/preferences");
+        const prefsResponse = await fetch("/api/v1/users/me/preferences");
         const prefsData = await prefsResponse.json();
         setShowInLeaderboard(prefsData.showInLeaderboard);
       } catch (error) {
@@ -43,7 +43,7 @@ export function CustomUserButton() {
 
   const handleVisibilityChange = async (checked: boolean) => {
     try {
-      const response = await fetch("/api/user/preferences", {
+      const response = await fetch("/api/v1/users/me/preferences", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ showInLeaderboard: checked }),

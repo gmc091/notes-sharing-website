@@ -1,8 +1,7 @@
-// app/api/notes/route.ts
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { clerkClient, type User, auth } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +13,7 @@ const querySchema = z.object({
   subjects: z.array(z.string()).optional(),
   years: z.array(z.string()).optional(),
   search: z.string().optional(),
-  sortBy: z.enum(["date", "views"]).optional().default("date"),
+  sortBy: z.enum(["date", "purchases"]).default("date"),
 });
 
 export async function GET(request: Request) {
@@ -78,8 +77,8 @@ export async function GET(request: Request) {
       whereConditions.length > 0 ? { AND: whereConditions } : {};
 
     const orderBy =
-      sortBy === "views"
-        ? { viewCount: "desc" as const }
+      sortBy === "purchases"
+        ? { purchaseCount: "desc" as const }
         : { createdAt: "desc" as const };
 
     const [notes, totalCount] = await Promise.all([
@@ -96,18 +95,16 @@ export async function GET(request: Request) {
           schools: true,
           subjects: true,
           years: true,
-          viewCount: true,
+          purchaseCount: true,
           userId: true,
           isAnonymous: true,
-          rating: true,
-          ratingCount: true,
-          views: userId
+          purchases: userId
             ? {
                 where: {
                   userId: userId,
                 },
                 select: {
-                  viewedAt: true,
+                  purchasedAt: true,
                 },
               }
             : false,
@@ -116,37 +113,22 @@ export async function GET(request: Request) {
       prisma.note.count({ where }),
     ]);
 
-    // Get user data for non-anonymous notes
-    const userIds = notes
-      .filter((note) => !note.isAnonymous)
-      .map((note) => note.userId)
-      .filter((id): id is string => id !== null);
-
-    let clerkUsers: User[] = [];
-    if (userIds.length > 0) {
-      const { data } = await clerkClient.users.getUserList({
-        userId: userIds,
-        limit: 100,
-      });
-      clerkUsers = data;
-    }
-
     // Transform the data to match the expected format
     const notesWithFiles = notes.map((note) => {
-      // Destructure everything except views using rest operator
-      const { filePaths, userId: noteUserId, ...noteData } = note;
+      // Only destructure what we need to remove from the final object
+      const { filePaths, userId: noteUserId } = note;
 
       return {
-        ...noteData,
+        ...note,
         files: filePaths.map((path) => ({
           key: path,
           name: path.split("/").pop() || path,
         })),
-        user: note.isAnonymous
-          ? null
-          : clerkUsers.find((u: User) => u.id === noteUserId) || null,
-        hasViewed: note.views && note.views.length > 0,
+        filePaths: undefined, // Remove filePaths from response
+        isPurchased: Boolean(note.purchases?.length),
+        isAuthor: userId === noteUserId,
         userId: undefined, // Remove raw userId from response
+        purchases: undefined, // Remove purchases from response
       };
     });
 

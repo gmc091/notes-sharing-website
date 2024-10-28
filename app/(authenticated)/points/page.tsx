@@ -69,8 +69,8 @@ export default function PointsHistoryPage() {
     const fetchData = async () => {
       try {
         const [pointsRes, historyRes] = await Promise.all([
-          fetch("/api/points"),
-          fetch("/api/points/history"),
+          fetch("/api/v1/users/me/points"),
+          fetch("/api/v1/users/me/points/history"),
         ]);
 
         if (!pointsRes.ok || !historyRes.ok) {

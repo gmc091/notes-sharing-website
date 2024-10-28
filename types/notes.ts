@@ -1,5 +1,4 @@
 // types/notes.ts
-
 export interface NoteFile {
   key: string;
   name: string;
@@ -22,11 +21,9 @@ export interface Note {
   schools: string[];
   subjects: string[];
   years: number[];
-  viewCount: number;
-  rating?: number;
-  ratingCount: number;
-  hasViewed?: boolean;
+  purchaseCount: number;
   isAuthor?: boolean;
+  isPurchased?: boolean;
 }
 
 export interface NotesApiResponse {

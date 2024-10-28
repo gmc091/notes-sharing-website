@@ -73,7 +73,7 @@ export const FileList: React.FC<FileListProps> = ({
                       onClick={() => onViewFile(file)}
                     >
                       <Eye className="h-4 w-4 mr-2" />
-                      Visualizza
+                      Apri
                     </Button>
                     <Button
                       variant="outline"

@@ -1,16 +1,15 @@
 // app/(authenticated)/note/[noteId]/note-viewer.tsx
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-
 import { NoteViewerHeader } from "@/components/notes/note-viewer-header";
 import { NoteTabs } from "@/components/notes/note-tabs";
-import { PointSpendingDialog } from "@/components/notes/point-spending-dialog";
+import { PurchaseDialog } from "@/components/notes/purchase-dialog";
 import type { Note, NoteFile, ViewerFile } from "@/types/notes";
 
 const toViewerFile = (file: NoteFile): ViewerFile | null => {
@@ -26,17 +25,13 @@ export interface NoteViewerProps {
   note: Note;
 }
 
-export const NoteViewer: React.FC<NoteViewerProps> = ({ note }) => {
+export function NoteViewer({ note }: NoteViewerProps) {
   const router = useRouter();
-  const [showPointDialog, setShowPointDialog] = useState(false);
-  const [hasViewed, setHasViewed] = useState(false);
-  const [isAuthor, setIsAuthor] = useState(false);
+  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
+  const [isPurchased, setIsPurchased] = useState(note.isPurchased || false);
+  const [isAuthor] = useState(note.isAuthor || false);
   const [userPoints, setUserPoints] = useState<number | null>(null);
   const [activeFile, setActiveFile] = useState<ViewerFile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [userRating, setUserRating] = useState<number | null>(null);
-  const [isRating, setIsRating] = useState(false);
-  const initialDataFetched = useRef(false);
 
   // Set initial active file when note data is available
   useEffect(() => {
@@ -49,106 +44,55 @@ export const NoteViewer: React.FC<NoteViewerProps> = ({ note }) => {
     }
   }, [note?.files]);
 
-  // Fetch initial data
+  // Fetch user points
   useEffect(() => {
-    async function fetchInitialData() {
-      if (initialDataFetched.current) return;
-
+    async function fetchUserPoints() {
       try {
-        setIsLoading(true);
-        const [pointsRes, accessRes, ratingRes] = await Promise.all([
-          fetch("/api/points"),
-          fetch(`/api/notes/${note.id}/access`),
-          fetch(`/api/notes/${note.id}/rate`),
-        ]);
-
-        if (!pointsRes.ok || !accessRes.ok || !ratingRes.ok) {
-          throw new Error("Failed to fetch initial data");
+        const pointsRes = await fetch("/api/v1/users/me/points");
+        if (!pointsRes.ok) {
+          throw new Error("Failed to fetch user points");
         }
-
-        const [pointsData, accessData, ratingData] = await Promise.all([
-          pointsRes.json(),
-          accessRes.json(),
-          ratingRes.json(),
-        ]);
-
+        const pointsData = await pointsRes.json();
         setUserPoints(pointsData.points);
-        setHasViewed(accessData.hasAccess);
-        setIsAuthor(accessData.isAuthor);
-        setUserRating(ratingData.rating);
 
-        if (!accessData.hasAccess && !accessData.isAuthor) {
-          setShowPointDialog(true);
+        if (!isPurchased && !isAuthor) {
+          setShowPurchaseDialog(true);
         }
       } catch (error) {
-        console.error("Error fetching initial data:", error);
-        toast.error("Errore nel caricamento dei dati");
-      } finally {
-        setIsLoading(false);
-        initialDataFetched.current = true;
+        console.error("Error fetching user points:", error);
+        toast.error("Errore nel caricamento dei punti utente");
       }
     }
 
-    if (note?.id) {
-      fetchInitialData();
-    }
-  }, [note?.id]);
+    fetchUserPoints();
+  }, [isPurchased, isAuthor]);
 
-  const handlePointSpending = async () => {
+  const handlePurchase = async () => {
     try {
-      setIsLoading(true);
-      const res = await fetch("/api/points", {
+      const res = await fetch("/api/v1/users/me/points", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "view",
+          action: "PURCHASE",
           noteId: note.id,
         }),
       });
 
       if (!res.ok) {
-        throw new Error("Failed to spend point");
+        throw new Error("Failed to purchase note");
       }
 
-      const pointsRes = await fetch("/api/points");
+      const pointsRes = await fetch("/api/v1/users/me/points");
       const pointsData = await pointsRes.json();
 
-      setShowPointDialog(false);
-      setHasViewed(true);
+      setShowPurchaseDialog(false);
+      setIsPurchased(true);
       setUserPoints(pointsData.points);
-      toast.success("Appunto sbloccato con successo!");
+      toast.success("Nota acquistata con successo!");
     } catch (error) {
-      console.error("Error spending point:", error);
-      toast.error("Errore nell'acquisto dell'appunto");
+      console.error("Error purchasing note:", error);
+      toast.error("Errore nell'acquisto della nota");
       setTimeout(() => router.push("/"), 0);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRating = async (rating: number) => {
-    if (isRating) return;
-
-    try {
-      setIsRating(true);
-      const res = await fetch(`/api/notes/${note.id}/rate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rating }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to submit rating");
-      }
-
-      setUserRating(rating);
-      toast.success("Valutazione salvata con successo!");
-      router.refresh();
-    } catch (error) {
-      console.error("Error submitting rating:", error);
-      toast.error("Errore nel salvataggio della valutazione");
-    } finally {
-      setIsRating(false);
     }
   };
 
@@ -159,16 +103,11 @@ export const NoteViewer: React.FC<NoteViewerProps> = ({ note }) => {
     }
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Caricamento...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleRequestAccess = useCallback(() => {
+    if (!isPurchased && !isAuthor) {
+      setShowPurchaseDialog(true);
+    }
+  }, [isPurchased, isAuthor]);
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -185,30 +124,27 @@ export const NoteViewer: React.FC<NoteViewerProps> = ({ note }) => {
           <NoteViewerHeader
             note={note}
             isAuthor={isAuthor}
-            hasViewed={hasViewed}
+            isPurchased={isPurchased}
             userPoints={userPoints}
-            userRating={userRating}
-            isRating={isRating}
-            onRating={handleRating}
           />
 
           <NoteTabs
             note={note}
-            hasViewed={hasViewed}
+            isPurchased={isPurchased}
             isAuthor={isAuthor}
-            onRequestAccess={() => setShowPointDialog(true)}
+            onRequestAccess={handleRequestAccess}
             activeFile={activeFile}
             onFileChange={handleFileChange}
           />
         </Card>
 
-        <PointSpendingDialog
-          isOpen={showPointDialog}
-          onConfirm={handlePointSpending}
+        <PurchaseDialog
+          isOpen={showPurchaseDialog}
+          onConfirm={handlePurchase}
           onCancel={() => router.push("/")}
           currentPoints={userPoints}
         />
       </div>
     </div>
   );
-};
+}

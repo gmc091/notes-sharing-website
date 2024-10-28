@@ -9,54 +9,37 @@ generator client {
 }
 
 model Note {
-  id            Int         @id @default(autoincrement())
+  id            Int           @id @default(autoincrement())
   title         String
   schools       String[]
   subjects      String[]
   years         Int[]
   filePaths     String[]
-  createdAt     DateTime
-  userId        String      // Clerk user ID
-  isAnonymous   Boolean     @default(false)
-  viewCount     Int         @default(0)
-  rating        Float?      // Average rating
-  ratingCount   Int         @default(0)
-  views         NoteView[]
-  ratings       NoteRating[]
-  user          User        @relation(fields: [userId], references: [clerkId])
+  createdAt     DateTime      @default(now())
+  userId        String        // Clerk user ID
+  isAnonymous   Boolean       @default(false)
+  purchaseCount Int           @default(0)  // Changed from viewCount to better reflect the system
+  purchases     NotePurchase[] // Renamed from views to better reflect the functionality
+  user          User          @relation(fields: [userId], references: [clerkId])
 }
 
 model User {
-  id               Int          @id @default(autoincrement())
-  clerkId          String       @unique // Clerk user ID
-  points           Int          @default(5) // Starting points
-  showInLeaderboard Boolean     @default(true)
-  notes            Note[]
-  noteViews        NoteView[]
-  noteRatings      NoteRating[]
+  id               Int            @id @default(autoincrement())
+  clerkId          String         @unique // Clerk user ID
+  points           Int            @default(5) // Starting points
+  showInLeaderboard Boolean       @default(true)
+  notes            Note[]         // Notes uploaded by user
+  purchases        NotePurchase[] // Notes purchased by user
   pointTransactions PointTransaction[]
 }
 
-model NoteView {
-  id        Int      @id @default(autoincrement())
-  noteId    Int
-  userId    String   // Clerk user ID
-  viewedAt  DateTime @default(now())
-  hasPaid   Boolean  @default(false)  // Add this field
-  note      Note     @relation(fields: [noteId], references: [id])
-  user      User     @relation(fields: [userId], references: [clerkId])
-
-  @@unique([noteId, userId])
-}
-
-model NoteRating {
-  id        Int      @id @default(autoincrement())
-  noteId    Int
-  userId    String   // Clerk user ID
-  rating    Int      // 1-5 stars
-  createdAt DateTime @default(now())
-  note      Note     @relation(fields: [noteId], references: [id])
-  user      User     @relation(fields: [userId], references: [clerkId])
+model NotePurchase {
+  id          Int      @id @default(autoincrement())
+  noteId      Int
+  userId      String   // Clerk user ID
+  purchasedAt DateTime @default(now())
+  note        Note     @relation(fields: [noteId], references: [id])
+  user        User     @relation(fields: [userId], references: [clerkId])
 
   @@unique([noteId, userId])
 }
@@ -65,7 +48,7 @@ model PointTransaction {
   id          Int      @id @default(autoincrement())
   userId      String   // Clerk user ID
   amount      Int      // Can be positive or negative
-  type        String   // "VIEW_SPENT", "VIEW_EARNED", "UPLOAD_REWARD", "MONTHLY_BONUS", "RATING_BONUS"
+  type        String   // "PURCHASE", "UPLOAD_REWARD", "MONTHLY_BONUS"
   description String
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [clerkId])

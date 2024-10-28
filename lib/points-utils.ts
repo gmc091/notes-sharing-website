@@ -1,15 +1,9 @@
 // lib/points-utils.ts
-
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export type TransactionType =
-  | "VIEW_SPENT"
-  | "VIEW_EARNED"
-  | "UPLOAD_REWARD"
-  | "MONTHLY_BONUS"
-  | "RATING_BONUS";
+export type TransactionType = "PURCHASE" | "UPLOAD_REWARD" | "MONTHLY_BONUS";
 
 interface PointTransaction {
   userId: string;
@@ -19,14 +13,13 @@ interface PointTransaction {
 }
 
 export async function getUserPoints(userId: string): Promise<number> {
-  // First try to get existing user with points
   const user = await prisma.user.findUnique({
     where: { clerkId: userId },
     select: { points: true },
   });
 
   if (!user) {
-    // If user doesn't exist, create them with initial 5 points
+    // If user doesn't exist, create them with initial points
     const newUser = await prisma.user.create({
       data: {
         clerkId: userId,
@@ -45,7 +38,6 @@ export async function createPointTransaction(
 ): Promise<void> {
   const { userId, amount, type, description } = transaction;
 
-  // Start a transaction to ensure data consistency
   await prisma.$transaction(async (tx) => {
     // Create the transaction record
     await tx.pointTransaction.create({
@@ -69,69 +61,51 @@ export async function createPointTransaction(
   });
 }
 
-export async function canUserViewNote(userId: string): Promise<boolean> {
-  const points = await getUserPoints(userId);
-  return points >= 1;
-}
-
-export async function handleNoteView(
+export async function handleNotePurchase(
   userId: string,
   noteId: number
 ): Promise<boolean> {
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // Get note and current viewer's status
-      const note = await tx.note.findUnique({
-        where: { id: noteId },
-        select: {
-          userId: true,
-          rating: true,
-          viewCount: true,
-          views: {
-            where: {
-              userId,
-              hasPaid: true,
-            },
+      // Check if user already purchased the note
+      const existingPurchase = await tx.notePurchase.findUnique({
+        where: {
+          noteId_userId: {
+            noteId,
+            userId,
           },
         },
       });
 
-      if (!note) return false;
+      if (existingPurchase) {
+        return true; // Note already purchased
+      }
 
-      // Check if user has already viewed
-      const hasViewed = note.views.length > 0;
+      // Get note and check if user is the author
+      const note = await tx.note.findUnique({
+        where: { id: noteId },
+        select: { userId: true },
+      });
 
-      // If it's the author's note or already viewed, just update the view timestamp
-      if (userId === note.userId || hasViewed) {
-        await tx.noteView.upsert({
-          where: {
-            noteId_userId: {
-              noteId,
-              userId,
-            },
-          },
-          create: {
-            noteId,
-            userId,
-            hasPaid: true,
-            viewedAt: new Date(),
-          },
-          update: {
-            viewedAt: new Date(),
-          },
-        });
-        return true;
+      if (!note) {
+        throw new Error("Note not found");
+      }
+
+      if (note.userId === userId) {
+        return true; // Author has automatic access
       }
 
       // Check if user has enough points
-      const viewer = await tx.user.findUnique({
+      const user = await tx.user.findUnique({
         where: { clerkId: userId },
         select: { points: true },
       });
 
-      if (!viewer || viewer.points < 1) return false;
+      if (!user || user.points < 1) {
+        throw new Error("Insufficient points");
+      }
 
-      // Deduct point from viewer
+      // Deduct point from purchaser
       await tx.user.update({
         where: { clerkId: userId },
         data: {
@@ -139,46 +113,44 @@ export async function handleNoteView(
           pointTransactions: {
             create: {
               amount: -1,
-              type: "VIEW_SPENT",
-              description: `Viewed note #${noteId}`,
+              type: "PURCHASE",
+              description: `Purchased note #${noteId}`,
             },
           },
         },
       });
 
-      // Record the view
-      await tx.noteView.create({
+      // Record the purchase
+      await tx.notePurchase.create({
         data: {
           noteId,
           userId,
-          hasPaid: true,
-          viewedAt: new Date(),
+          purchasedAt: new Date(),
         },
       });
 
-      // Update note view count and award points to owner atomically
+      // Update note purchase count and award point to owner
       if (note.userId) {
-        const pointsToAward = note.rating && note.rating >= 4 ? 2 : 1;
         await tx.user.update({
           where: { clerkId: note.userId },
           data: {
-            points: { increment: pointsToAward },
+            points: { increment: 1 },
             pointTransactions: {
               create: {
-                amount: pointsToAward,
-                type: "VIEW_EARNED",
-                description: `Note #${noteId} was viewed`,
+                amount: 1,
+                type: "PURCHASE",
+                description: `Note #${noteId} was purchased`,
               },
             },
           },
         });
       }
 
-      // Increment view count
+      // Increment purchase count
       await tx.note.update({
         where: { id: noteId },
         data: {
-          viewCount: { increment: 1 },
+          purchaseCount: { increment: 1 },
         },
       });
 
@@ -187,7 +159,7 @@ export async function handleNoteView(
 
     return result;
   } catch (error) {
-    console.error("Error in handleNoteView:", error);
+    console.error("Error in handleNotePurchase:", error);
     return false;
   }
 }
@@ -201,50 +173,6 @@ export async function handleNoteUpload(
     amount: 1,
     type: "UPLOAD_REWARD",
     description: `Uploaded note #${noteId}`,
-  });
-}
-
-export async function handleNoteRating(
-  userId: string,
-  noteId: number,
-  rating: number
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    // Create or update the rating
-    await tx.noteRating.upsert({
-      where: {
-        noteId_userId: {
-          noteId,
-          userId,
-        },
-      },
-      create: {
-        noteId,
-        userId,
-        rating,
-      },
-      update: {
-        rating,
-      },
-    });
-
-    // Recalculate average rating
-    const ratings = await tx.noteRating.findMany({
-      where: { noteId },
-      select: { rating: true },
-    });
-
-    const avgRating =
-      ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
-
-    // Update note with new average rating and count
-    await tx.note.update({
-      where: { id: noteId },
-      data: {
-        rating: avgRating,
-        ratingCount: ratings.length,
-      },
-    });
   });
 }
 

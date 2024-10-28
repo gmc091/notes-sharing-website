@@ -45,7 +45,7 @@ export default function UploadPage() {
                   <BookOpen className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-primary">+5</p>
+                  <p className="text-2xl font-bold text-primary">+1</p>
                   <p className="text-sm text-muted-foreground">
                     Punti per upload
                   </p>

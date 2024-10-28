@@ -389,7 +389,7 @@ const UploadForm = () => {
         size: file.size,
       }));
 
-      const response = await fetch("/api/upload", {
+      const response = await fetch("/api/v1/notes/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

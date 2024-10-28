@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 interface NoteTabsProps {
   note: Note;
-  hasViewed: boolean;
+  isPurchased: boolean;
   isAuthor: boolean;
   onRequestAccess: () => void;
   activeFile: ViewerFile | null;
@@ -20,17 +20,17 @@ interface NoteTabsProps {
 
 export const NoteTabs: React.FC<NoteTabsProps> = ({
   note,
-  hasViewed,
+  isPurchased,
   isAuthor,
   onRequestAccess,
   activeFile,
   onFileChange,
 }) => {
   const [activeTab, setActiveTab] = useState("viewer");
-  const isBlurred = !hasViewed && !isAuthor;
+  const isBlurred = !isPurchased && !isAuthor;
 
   const handleViewFile = (file: NoteFile) => {
-    if (!hasViewed && !isAuthor) {
+    if (!isPurchased && !isAuthor) {
       onRequestAccess();
       return;
     }
@@ -39,7 +39,7 @@ export const NoteTabs: React.FC<NoteTabsProps> = ({
   };
 
   const handleDownload = async (file: NoteFile) => {
-    if (!hasViewed && !isAuthor) {
+    if (!isPurchased && !isAuthor) {
       onRequestAccess();
       return;
     }
