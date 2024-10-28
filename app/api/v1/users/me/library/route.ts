@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
+// Add route segment config to mark as dynamic
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   try {
     const { userId } = auth();
@@ -15,7 +18,7 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
 
-    // Get all notes purchased by the user
+    // Rest of your existing code...
     const [purchases, totalCount] = await Promise.all([
       prisma.notePurchase.findMany({
         where: {

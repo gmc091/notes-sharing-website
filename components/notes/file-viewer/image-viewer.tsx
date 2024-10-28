@@ -3,6 +3,7 @@ import React, { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut } from "lucide-react";
 import { ViewerFile } from "@/types/notes";
+import OptimizedImage from "@/components/optimized-image";
 
 interface ImageViewerProps {
   file: ViewerFile;
@@ -71,8 +72,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, fileName }) => {
             }}
             onMouseDown={handleMouseDown}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <OptimizedImage
               src={file.url}
               alt={fileName}
               className="max-w-full max-h-[70vh] object-contain select-none"

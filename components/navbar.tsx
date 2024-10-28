@@ -34,6 +34,7 @@ import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { CustomUserButton } from "./user-button";
 import { Skeleton } from "./ui/skeleton";
 import { usePointsContext } from "@/context/points-context";
+import OptimizedImage from "./optimized-image";
 
 const schoolTypes = [
   {
@@ -178,10 +179,13 @@ export function Navbar() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <div className="relative h-10 w-10">
-                <img
+                <OptimizedImage
                   src={user.imageUrl}
                   alt={user.fullName || "User avatar"}
-                  className="h-full w-full rounded-full object-cover"
+                  width={40}
+                  height={40}
+                  className="rounded-full object-cover"
+                  priority
                 />
               </div>
               <div className="flex flex-col">
