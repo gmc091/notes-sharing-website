@@ -1,4 +1,3 @@
-// app/api/upload/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -8,7 +7,7 @@ import { generateUniqueFilename, validateFilename } from "@/lib/file-utils";
 import { auth } from "@clerk/nextjs/server";
 import { handleNoteUpload } from "@/lib/points-utils";
 
-// Validation schemas
+// Validation schemas remain the same
 const ACCEPTED_FILE_TYPES = [
   "application/pdf",
   "image/jpeg",
@@ -70,7 +69,7 @@ const r2Client = new S3Client({
   },
 });
 
-// Helper function to generate presigned URLs
+// Helper function remains the same
 async function generatePresignedUrls(
   files: z.infer<typeof fileSchema>[],
   noteId: number,
@@ -120,8 +119,8 @@ export async function POST(request: Request) {
     const rawData = await request.json();
     const validatedData = uploadSchema.parse(rawData);
 
-    // Ensure user exists
-    await prisma.$transaction(async (tx) => {
+    // Execute transaction and store result
+    const result = await prisma.$transaction(async (tx) => {
       // Create note
       const note = await tx.note.create({
         data: {
@@ -155,15 +154,21 @@ export async function POST(request: Request) {
       // Award points for uploading
       await handleNoteUpload(userId, note.id);
 
-      return NextResponse.json({
-        success: true,
+      return {
         noteId: note.id,
-        presignedUrls: fileData.map((f) => ({
-          url: f.url,
-          key: f.key,
-          originalName: f.originalName,
-        })),
-      });
+        fileData,
+      };
+    });
+
+    // Return response outside of transaction
+    return NextResponse.json({
+      success: true,
+      noteId: result.noteId,
+      presignedUrls: result.fileData.map((f) => ({
+        url: f.url,
+        key: f.key,
+        originalName: f.originalName,
+      })),
     });
   } catch (error) {
     console.error("Error handling upload:", error);
