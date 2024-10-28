@@ -3,6 +3,8 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Appearance } from "@clerk/types";
 import { itIT } from "@clerk/localizations";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Appunti - Liceo aprosio",
@@ -97,7 +99,11 @@ export default function RootLayout({
   return (
     <ClerkProvider localization={itIT} appearance={appearance}>
       <html lang="it" className="h-full">
-        <body className="flex flex-col min-h-full">{children}</body>
+        <body className="flex flex-col min-h-full">
+          {children}
+          <Analytics />
+          <SpeedInsights />
+        </body>
       </html>
     </ClerkProvider>
   );
