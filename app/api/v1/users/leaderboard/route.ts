@@ -4,7 +4,9 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { cache } from "react";
 
+// Ensure route is not cached by Next.js
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 interface LeaderboardUser {
   id: string;
@@ -36,7 +38,8 @@ const getClerkUsers = cache(async (userIds: string[]) => {
   return data;
 });
 
-export async function GET() {
+// GET handler for the leaderboard endpoint
+export async function GET(req: Request) {
   try {
     const { userId: currentUserId } = auth();
 
@@ -97,8 +100,10 @@ export async function GET() {
   } catch (error) {
     console.error("Error fetching leaderboard:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to fetch leaderboard" },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
