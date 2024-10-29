@@ -1,3 +1,4 @@
+// components/auth-wrapper.tsx
 "use client";
 
 import { useUser } from "@clerk/nextjs";
@@ -8,7 +9,6 @@ import {
   LogOut,
   Mail,
   AlertCircle,
-  Loader2,
   CheckCircle2,
 } from "lucide-react";
 import {
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import LoadingSpinner from "./loader";
 
 const AUTHORIZED_EMAILS = [
   "@liceoaprosio.it",
@@ -43,13 +44,7 @@ export default function AuthWrapper({
     : false;
 
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (!user) {
@@ -130,7 +125,7 @@ export default function AuthWrapper({
                 </SignUpButton>
               </CardContent>
 
-              <CardFooter className="p-4 sm:p-6">
+              <CardFooter className="p-4 sm:p-6 flex flex-col gap-4">
                 <div className="rounded-lg border p-4 w-full">
                   <div className="flex items-center gap-3 text-muted-foreground">
                     <Mail className="h-5 w-5 flex-shrink-0" />
@@ -142,6 +137,21 @@ export default function AuthWrapper({
                       per accedere
                     </p>
                   </div>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <a
+                    href="/terms"
+                    className="hover:text-primary hover:underline"
+                  >
+                    Termini di Servizio
+                  </a>
+                  <span>·</span>
+                  <a
+                    href="/privacy"
+                    className="hover:text-primary hover:underline"
+                  >
+                    Privacy Policy
+                  </a>
                 </div>
               </CardFooter>
             </Card>

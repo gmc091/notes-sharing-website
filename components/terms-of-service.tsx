@@ -1,3 +1,4 @@
+// components/terms-dialog.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -20,6 +21,7 @@ import {
   ShieldCheck,
   User2,
 } from "lucide-react";
+import axios from "axios";
 
 const TermsDialog = () => {
   const { user } = useUser();
@@ -30,20 +32,37 @@ const TermsDialog = () => {
     terms: false,
     student: false,
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const hasAcceptedTerms = localStorage.getItem(`terms-accepted-${user?.id}`);
-    if (!hasAcceptedTerms && user) {
-      setOpen(true);
-    }
+    const checkTermsAcceptance = async () => {
+      if (user) {
+        try {
+          const response = await axios.get("/api/v1/terms");
+          if (!response.data) {
+            setOpen(true);
+          }
+        } catch (error) {
+          console.error("Error checking terms acceptance:", error);
+          setOpen(true);
+        }
+        setLoading(false);
+      }
+    };
+
+    checkTermsAcceptance();
   }, [user]);
 
   const allAccepted = Object.values(accepted).every(Boolean);
 
-  const handleAccept = () => {
+  const handleAccept = async () => {
     if (allAccepted && user) {
-      localStorage.setItem(`terms-accepted-${user.id}`, "true");
-      setOpen(false);
+      try {
+        await axios.post("/api/v1/terms");
+        setOpen(false);
+      } catch (error) {
+        console.error("Error saving terms acceptance:", error);
+      }
     }
   };
 
@@ -200,6 +219,10 @@ const TermsDialog = () => {
       ),
     },
   ];
+
+  if (loading) {
+    return null;
+  }
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>

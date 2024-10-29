@@ -18,8 +18,8 @@ model Note {
   createdAt     DateTime      @default(now())
   userId        String        // Clerk user ID
   isAnonymous   Boolean       @default(false)
-  purchaseCount Int           @default(0)  // Changed from viewCount to better reflect the system
-  purchases     NotePurchase[] // Renamed from views to better reflect the functionality
+  purchaseCount Int           @default(0)
+  purchases     NotePurchase[]
   user          User          @relation(fields: [userId], references: [clerkId])
 }
 
@@ -31,6 +31,7 @@ model User {
   notes            Note[]         // Notes uploaded by user
   purchases        NotePurchase[] // Notes purchased by user
   pointTransactions PointTransaction[]
+  termsAcceptance  TermsAcceptance?
 }
 
 model NotePurchase {
@@ -52,4 +53,13 @@ model PointTransaction {
   description String
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [clerkId])
+}
+
+model TermsAcceptance {
+  id          Int      @id @default(autoincrement())
+  userId      String   @unique
+  acceptedAt  DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [clerkId])
+
+  @@index([userId])
 }

@@ -28,11 +28,11 @@ import {
   BookOpen,
   Image as ImageIcon,
   File,
-  Loader2,
   Filter,
 } from "lucide-react";
 import type { LibraryNote } from "@/types/notes";
 import { Badge, BadgeVariant } from "@/components/ui/badge";
+import LoadingSpinner from "@/components/loader";
 
 const fileTypeIcons: { [key: string]: React.ElementType } = {
   pdf: FileText,
@@ -120,17 +120,7 @@ export default function LibraryPage() {
   }, [notes, searchQuery, sortBy]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-white">
-        <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="flex flex-col items-center gap-4">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error) {

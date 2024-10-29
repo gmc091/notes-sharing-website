@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
-// Add route segment config to mark as dynamic
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
@@ -22,6 +21,16 @@ export async function GET(request: Request) {
       prisma.pointTransaction.findMany({
         where: {
           userId,
+          type: {
+            in: [
+              "VIEW_SPENT",
+              "PURCHASE_SPENT",
+              "PURCHASE_EARNED",
+              "UPLOAD_REWARD",
+              "MONTHLY_BONUS",
+              "LOGIN_BONUS", // Include the login bonus type
+            ],
+          },
         },
         orderBy: {
           createdAt: "desc",
@@ -32,6 +41,16 @@ export async function GET(request: Request) {
       prisma.pointTransaction.count({
         where: {
           userId,
+          type: {
+            in: [
+              "VIEW_SPENT",
+              "PURCHASE_SPENT",
+              "PURCHASE_EARNED",
+              "UPLOAD_REWARD",
+              "MONTHLY_BONUS",
+              "LOGIN_BONUS", // Include the login bonus type
+            ],
+          },
         },
       }),
     ]);

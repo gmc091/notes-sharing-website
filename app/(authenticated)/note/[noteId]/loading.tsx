@@ -1,11 +1,7 @@
 // app/(authenticated)/note/[noteId]/loading.tsx
 
-import { Loader2 } from "lucide-react";
+import LoadingSpinner from "@/components/loader";
 
 export default function Loading() {
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
-  );
+  return <LoadingSpinner />;
 }

@@ -19,14 +19,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge, BadgeProps } from "@/components/ui/badge";
-import {
-  ArrowLeft,
-  Coins,
-  TrendingDown,
-  TrendingUp,
-  Loader2,
-} from "lucide-react";
+import { ArrowLeft, Coins, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
+import LoadingSpinner from "@/components/loader";
 
 interface PointTransaction {
   id: number;
@@ -74,6 +69,12 @@ const transactionTypeConfig: Record<
     variant: "secondary",
     icon: <TrendingUp className="h-3 w-3" />,
     description: "Bonus mensile per l'attività sulla piattaforma",
+  },
+  LOGIN_BONUS: {
+    label: "Bonus accesso",
+    variant: "secondary",
+    icon: <TrendingUp className="h-3 w-3" />,
+    description: "Bonus giornaliero per l'accesso alla piattaforma",
   },
 };
 
@@ -147,11 +148,7 @@ export default function PointsHistoryPage() {
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error) {

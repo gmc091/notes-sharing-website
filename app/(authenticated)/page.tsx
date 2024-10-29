@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import NoteCard from "@/components/note-card";
 import {
-  Loader2,
   Plus,
   BookOpen,
   Users,
@@ -41,6 +40,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useFilters } from "@/hooks/use-filters";
 import { Leaderboard } from "@/components/leaderboard";
+import LoadingSpinner from "@/components/loader";
 
 export default function Home() {
   const {
@@ -311,9 +311,7 @@ export default function Home() {
             )}
           >
             {isLoading || isPending ? (
-              <div className="flex justify-center items-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
+              <LoadingSpinner />
             ) : error ? (
               <Card className="p-6 text-center border-red-100 bg-red-50">
                 <p className="text-red-600">{error}</p>

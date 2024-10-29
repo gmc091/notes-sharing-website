@@ -6,8 +6,8 @@ import { NoteViewer } from "./note-viewer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
 import { type Note } from "@/types/notes";
+import LoadingSpinner from "@/components/loader";
 
 export default function NotePage({ params }: { params: { noteId: string } }) {
   const [note, setNote] = React.useState<Note | null>(null);
@@ -42,13 +42,9 @@ export default function NotePage({ params }: { params: { noteId: string } }) {
   }, [params.noteId]);
 
   if (isLoading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </div>
-    );
+    if (isLoading) {
+      return <LoadingSpinner />;
+    }
   }
 
   if (error || !note) {
