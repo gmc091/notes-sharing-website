@@ -10,7 +10,6 @@ import {
   UserPlus,
   LogOut,
   User as UserIcon,
-  Coins,
 } from "lucide-react";
 import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { useState } from "react";
@@ -32,9 +31,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { CustomUserButton } from "./user-button";
-import { Skeleton } from "./ui/skeleton";
-import { usePointsContext } from "@/context/points-context";
 import OptimizedImage from "./optimized-image";
+import { PointsDisplay } from "./points-display";
 
 const schoolTypes = [
   {
@@ -99,7 +97,6 @@ export function Navbar() {
   const { signOut, openUserProfile } = useClerk();
   const router = useRouter();
   const pathname = usePathname();
-  const { points, isLoading: isLoadingPoints } = usePointsContext();
 
   const handleExpand = (index: number) => {
     setExpandedSection((prev) => (prev === index ? null : index));
@@ -133,17 +130,6 @@ export function Navbar() {
     // Close the mobile menu if open
     setIsSheetOpen(false);
   };
-
-  const PointsDisplay = ({ className = "" }) => (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <Coins className="h-4 w-4 text-primary" />
-      {isLoadingPoints ? (
-        <Skeleton className="h-4 w-12" />
-      ) : (
-        <span className="text-sm font-medium">{points ?? 0} punti</span>
-      )}
-    </div>
-  );
 
   const AuthButtons = ({ isMobile = false }) => {
     if (!isMobile) {
@@ -197,7 +183,10 @@ export function Navbar() {
                 </p>
               </div>
             </div>
-            <PointsDisplay className="bg-primary/5 px-2 py-1 rounded-full" />
+            <PointsDisplay
+              variant="badge"
+              className="bg-primary/5 px-2 py-1 rounded-full"
+            />
           </div>
 
           <div className="space-y-2">

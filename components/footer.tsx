@@ -33,12 +33,12 @@ const Footer = () => {
             asChild
           >
             <Link
-              href="mailto:dev.sylently@gmail.com"
+              href="mailto:appunti.liceo.aprosio@gmail.com"
               className="flex items-center gap-2"
             >
               <Mail className="h-4 w-4 group-hover:scale-110 transition-transform" />
               <span className="text-sm font-medium">
-                dev.sylently@gmail.com
+                appunti.liceo.aprosio@gmail.com
               </span>
             </Link>
           </Button>

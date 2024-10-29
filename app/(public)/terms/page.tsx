@@ -237,7 +237,7 @@ export default function TermsPage() {
                   <h2 className="text-xl font-semibold mb-4">12. Contatti</h2>
                   <p>
                     Per qualsiasi domanda riguardante questi Termini,
-                    contattare: dev.sylently@gmail.com
+                    contattare: appunti.liceo.aprosio@gmail.com
                   </p>
                 </section>
               </div>

@@ -167,7 +167,7 @@ export default function AuthWrapper({
                 </SignOutButton>
                 <p className="text-sm text-center text-muted-foreground">
                   Se pensi che questo sia un errore, contatta{" "}
-                  <b> dev.sylently@gmail.com</b>
+                  <b> appunti.liceo.aprosio@gmail.com</b>
                 </p>
               </div>
             </CardContent>

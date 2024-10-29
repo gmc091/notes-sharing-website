@@ -114,7 +114,7 @@ export async function handleNotePurchase(
             create: {
               amount: -1,
               type: "PURCHASE",
-              description: `Purchased note #${noteId}`,
+              description: `Acquisto nota #${noteId}`,
             },
           },
         },
@@ -139,7 +139,7 @@ export async function handleNotePurchase(
               create: {
                 amount: 1,
                 type: "PURCHASE",
-                description: `Note #${noteId} was purchased`,
+                description: `La nota #${noteId} è stata acquistata`,
               },
             },
           },
@@ -172,7 +172,7 @@ export async function handleNoteUpload(
     userId,
     amount: 1,
     type: "UPLOAD_REWARD",
-    description: `Uploaded note #${noteId}`,
+    description: `Caricamento nota #${noteId}`,
   });
 }
 

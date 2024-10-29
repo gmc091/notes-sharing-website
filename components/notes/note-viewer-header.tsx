@@ -2,21 +2,20 @@
 import React from "react";
 import { CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Info, Coins } from "lucide-react";
+import { Info } from "lucide-react";
 import type { Note } from "@/types/notes";
+import { PointsDisplay } from "@/components/points-display";
 
 interface NoteViewerHeaderProps {
   note: Note;
   isAuthor: boolean;
   isPurchased: boolean;
-  userPoints: number | null;
 }
 
 export const NoteViewerHeader: React.FC<NoteViewerHeaderProps> = ({
   note,
   isAuthor,
   isPurchased,
-  userPoints,
 }) => (
   <CardHeader className="space-y-4">
     <div className="flex items-start justify-between">
@@ -41,10 +40,7 @@ export const NoteViewerHeader: React.FC<NoteViewerHeaderProps> = ({
         </CardDescription>
       </div>
       <div className="flex items-center gap-2">
-        <Badge variant="secondary" className="gap-1">
-          <Coins className="h-3.5 w-3.5" />
-          <span>{userPoints} punti</span>
-        </Badge>
+        <PointsDisplay variant="badge" />
         <Badge variant="secondary" className="text-sm">
           {note.files.length} {note.files.length === 1 ? "file" : "files"}
         </Badge>

@@ -1,5 +1,3 @@
-// app/(authenticated)/points/page.tsx
-
 "use client";
 
 import React from "react";
@@ -19,8 +17,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Coins, Loader2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge, BadgeProps } from "@/components/ui/badge";
+import {
+  ArrowLeft,
+  Coins,
+  TrendingDown,
+  TrendingUp,
+  Loader2,
+} from "lucide-react";
 import Link from "next/link";
 
 interface PointTransaction {
@@ -33,23 +38,42 @@ interface PointTransaction {
 
 const transactionTypeConfig: Record<
   string,
-  { label: string; variant: BadgeProps["variant"] }
+  {
+    label: string;
+    variant: BadgeProps["variant"];
+    icon?: React.ReactNode;
+    description?: string;
+  }
 > = {
   VIEW_SPENT: {
-    label: "Visualizzazione",
+    label: "Visualizzazione appunti",
     variant: "destructive",
+    icon: <TrendingDown className="h-3 w-3" />,
+    description: "Punti spesi per visualizzare appunti",
   },
-  VIEW_EARNED: {
-    label: "Guadagno visualizzazione",
+  PURCHASE_SPENT: {
+    label: "Acquisto appunti",
+    variant: "destructive",
+    icon: <TrendingDown className="h-3 w-3" />,
+    description: "Punti spesi per acquistare appunti",
+  },
+  PURCHASE_EARNED: {
+    label: "Vendita appunti",
     variant: "secondary",
+    icon: <TrendingUp className="h-3 w-3" />,
+    description: "Punti guadagnati dalla vendita dei tuoi appunti",
   },
   UPLOAD_REWARD: {
     label: "Premio caricamento",
     variant: "secondary",
+    icon: <TrendingUp className="h-3 w-3" />,
+    description: "Bonus per il caricamento di nuovi appunti",
   },
   MONTHLY_BONUS: {
     label: "Bonus mensile",
     variant: "secondary",
+    icon: <TrendingUp className="h-3 w-3" />,
+    description: "Bonus mensile per l'attività sulla piattaforma",
   },
 };
 
@@ -60,6 +84,24 @@ export default function PointsHistoryPage() {
   const [totalPoints, setTotalPoints] = React.useState<number | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  const stats = React.useMemo(() => {
+    if (!transactions.length) return null;
+
+    return {
+      earned: transactions.reduce(
+        (sum, t) => (t.amount > 0 ? sum + t.amount : sum),
+        0
+      ),
+      spent: Math.abs(
+        transactions.reduce(
+          (sum, t) => (t.amount < 0 ? sum + t.amount : sum),
+          0
+        )
+      ),
+      totalTransactions: transactions.length,
+    };
+  }, [transactions]);
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -78,8 +120,21 @@ export default function PointsHistoryPage() {
           historyRes.json(),
         ]);
 
+        // Convert old PURCHASE type to new specific types based on amount
+        const processedTransactions = historyData.transactions.map(
+          (t: PointTransaction) => ({
+            ...t,
+            type:
+              t.type === "PURCHASE"
+                ? t.amount > 0
+                  ? "PURCHASE_EARNED"
+                  : "PURCHASE_SPENT"
+                : t.type,
+          })
+        );
+
         setTotalPoints(pointsData.points);
-        setTransactions(historyData.transactions);
+        setTransactions(processedTransactions);
       } catch (error) {
         console.error("Error fetching points data:", error);
         setError("Si è verificato un errore durante il caricamento dei dati");
@@ -104,8 +159,10 @@ export default function PointsHistoryPage() {
       <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <p className="text-muted-foreground">{error}</p>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+            <div className="mt-4 text-center">
               <Button asChild>
                 <Link href="/">Torna alla home</Link>
               </Button>
@@ -128,40 +185,101 @@ export default function PointsHistoryPage() {
         </Link>
 
         <div className="space-y-6">
-          {/* Points Overview Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Coins className="h-5 w-5 text-primary" />I tuoi punti
-              </CardTitle>
-              <CardDescription>
-                Storia completa delle tue transazioni di punti
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-primary/5 rounded-lg p-4 flex justify-between items-center">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Punti totali
-                  </p>
-                  <p className="text-3xl font-bold text-primary">
-                    {totalPoints}
-                  </p>
+          {/* Points Overview Cards */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Punti Totali
+                </CardTitle>
+                <Coins className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-primary">
+                  {totalPoints}
                 </div>
-                <Button asChild variant="default">
-                  <Link href="/upload" className="flex items-center gap-2">
-                    Carica appunti
-                  </Link>
+                <p className="text-xs text-muted-foreground">
+                  Saldo attuale disponibile
+                </p>
+              </CardContent>
+            </Card>
+
+            {stats && (
+              <>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Punti Guadagnati
+                    </CardTitle>
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">
+                      +{stats.earned}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Totale punti in entrata
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Punti Spesi
+                    </CardTitle>
+                    <TrendingDown className="h-4 w-4 text-red-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-red-600">
+                      -{stats.spent}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Totale punti in uscita
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Transazioni
+                    </CardTitle>
+                    <Coins className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {stats.totalTransactions}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Numero totale di movimenti
+                    </p>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
+
+          {/* Quick Actions */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap gap-4">
+                <Button asChild>
+                  <Link href="/upload">Carica appunti</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/library">Sfoglia appunti</Link>
                 </Button>
               </div>
             </CardContent>
           </Card>
+
           {/* Transactions Table */}
           <Card>
             <CardHeader>
               <CardTitle>Storico transazioni</CardTitle>
               <CardDescription>
-                Tutti i movimenti dei tuoi punti
+                Tutti i movimenti dei tuoi punti in ordine cronologico
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -185,44 +303,55 @@ export default function PointsHistoryPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    transactions.map((transaction) => (
-                      <TableRow key={transaction.id}>
-                        <TableCell className="whitespace-nowrap">
-                          {new Date(transaction.createdAt).toLocaleDateString(
-                            "it-IT",
-                            {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            }
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              transactionTypeConfig[transaction.type]
-                                ?.variant || "default"
-                            }
-                          >
-                            {transactionTypeConfig[transaction.type]?.label ||
-                              transaction.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{transaction.description}</TableCell>
-                        <TableCell className="text-right">
-                          <span
-                            className={
-                              transaction.amount > 0
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }
-                          >
-                            {transaction.amount > 0 ? "+" : ""}
-                            {transaction.amount}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    transactions.map((transaction) => {
+                      const typeConfig =
+                        transactionTypeConfig[transaction.type];
+                      return (
+                        <TableRow key={transaction.id}>
+                          <TableCell className="whitespace-nowrap">
+                            {new Date(transaction.createdAt).toLocaleDateString(
+                              "it-IT",
+                              {
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                              }
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={typeConfig?.variant || "default"}
+                              className="flex items-center gap-1 w-fit"
+                            >
+                              {typeConfig?.icon}
+                              {typeConfig?.label || transaction.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              {transaction.description}
+                              {typeConfig?.description && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {typeConfig.description}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            <span
+                              className={
+                                transaction.amount > 0
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }
+                            >
+                              {transaction.amount > 0 ? "+" : ""}
+                              {transaction.amount}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

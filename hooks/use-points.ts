@@ -1,5 +1,4 @@
 // hooks/use-points.ts
-
 import { useState, useEffect, useCallback } from "react";
 import { pointsToast } from "@/lib/toast-utils";
 
@@ -26,18 +25,27 @@ export function usePoints() {
 
   const spendPoints = useCallback(async (amount: number, noteId: number) => {
     try {
+      // Optimistically update the UI
+      setPoints((prev) => (prev !== null ? prev - amount : null));
+
       const res = await fetch("/api/v1/users/me/points", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "view",
+          action: "PURCHASE",
           noteId,
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to spend points");
+      if (!res.ok) {
+        // If the request fails, rollback the optimistic update
+        setPoints((prev) => (prev !== null ? prev + amount : null));
+        throw new Error("Failed to spend points");
+      }
 
-      setPoints((prev) => (prev !== null ? prev - amount : null));
+      const data = await res.json();
+      // Update with the actual server value
+      setPoints(data.points);
       pointsToast.spent(amount);
       return true;
     } catch (error) {

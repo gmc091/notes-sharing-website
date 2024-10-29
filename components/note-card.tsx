@@ -20,6 +20,7 @@ import {
   Eye,
   Coins,
   Check,
+  User,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -59,6 +60,9 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
     minute: "2-digit",
   });
 
+  // Determine if the user can access the note (either purchased or owner)
+  const hasAccess = note.isPurchased || note.isAuthor;
+
   return (
     <Card className="group flex flex-col h-full transition-all duration-300 bg-card hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border">
       <CardHeader className="space-y-3 pb-3">
@@ -97,32 +101,47 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
             </Tooltip>
           </div>
 
-          {/* Access Status Indicator */}
-          <Tooltip>
-            <TooltipTrigger>
-              <Badge
-                variant={note.isPurchased ? "secondary" : "outline"}
-                className="gap-1"
-              >
-                {note.isPurchased ? (
-                  <>
-                    <Check className="h-3 w-3" />
-                    <span>Disponibile</span>
-                  </>
-                ) : (
-                  <>
-                    <Coins className="h-3 w-3" />
-                    <span>1 punto</span>
-                  </>
-                )}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              {note.isPurchased
-                ? "Hai già accesso a questo appunto"
-                : "Costa 1 punto acquistare questo appunto"}
-            </TooltipContent>
-          </Tooltip>
+          <div className="flex items-center gap-2">
+            {/* Owner Badge - Only show if user is the author */}
+            {note.isAuthor && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge variant="secondary" className="gap-1">
+                    <User className="h-3 w-3" />
+                    <span>Il tuo appunto</span>
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>Hai creato questo appunto</TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Access Status Indicator */}
+            <Tooltip>
+              <TooltipTrigger>
+                <Badge
+                  variant={hasAccess ? "secondary" : "outline"}
+                  className="gap-1"
+                >
+                  {hasAccess ? (
+                    <>
+                      <Check className="h-3 w-3" />
+                      <span>Disponibile</span>
+                    </>
+                  ) : (
+                    <>
+                      <Coins className="h-3 w-3" />
+                      <span>1 punto</span>
+                    </>
+                  )}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                {hasAccess
+                  ? "Hai già accesso a questo appunto"
+                  : "Costa 1 punto acquistare questo appunto"}
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </CardHeader>
 
@@ -190,7 +209,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
             href={`/note/${note.id}`}
             className="flex items-center justify-center gap-2"
           >
-            {note.isPurchased ? (
+            {hasAccess ? (
               <>
                 <span className="font-medium">Apri appunto</span>
                 <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />

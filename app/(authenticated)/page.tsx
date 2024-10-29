@@ -12,7 +12,6 @@ import {
   ArrowUpRight,
   Search,
   SlidersHorizontal,
-  Trophy,
 } from "lucide-react";
 import {
   Pagination,
@@ -63,6 +62,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [totalViews, setTotalViews] = useState(0);
 
   // Calculate active filters
   const activeFiltersCount =
@@ -71,38 +71,50 @@ export default function Home() {
     selectedYears.length +
     (searchQuery ? 1 : 0);
 
-  // Fetch notes when filters change
+  // Fetch notes and total views when filters change
   useEffect(() => {
-    const fetchNotes = async () => {
+    const fetchData = async () => {
       setIsLoading(true);
       try {
-        const params = new URLSearchParams();
-        params.append("page", currentPage.toString());
-        params.append("limit", "6");
+        const [notesResponse, statsResponse] = await Promise.all([
+          fetch(
+            `api/v1/notes?${new URLSearchParams({
+              page: currentPage.toString(),
+              limit: "6",
+              ...(searchQuery && { search: searchQuery }),
+              ...(selectedSchools.length && {
+                schools: selectedSchools.join(","),
+              }),
+              ...(selectedSubjects.length && {
+                subjects: selectedSubjects.join(","),
+              }),
+              ...(selectedYears.length && { years: selectedYears.join(",") }),
+            })}`
+          ),
+          fetch("api/v1/stats"),
+        ]);
 
-        if (searchQuery) params.append("search", searchQuery);
-        selectedSchools.forEach((school) => params.append("schools", school));
-        selectedSubjects.forEach((subject) =>
-          params.append("subjects", subject)
-        );
-        selectedYears.forEach((year) => params.append("years", year));
+        if (!notesResponse.ok) throw new Error("Failed to fetch notes");
+        if (!statsResponse.ok) throw new Error("Failed to fetch stats");
 
-        const response = await fetch(`api/v1/notes?${params.toString()}`);
-        if (!response.ok) throw new Error("Failed to fetch notes");
+        const [notesData, statsData]: [
+          NotesApiResponse,
+          { totalViews: number }
+        ] = await Promise.all([notesResponse.json(), statsResponse.json()]);
 
-        const data: NotesApiResponse = await response.json();
-        setNotesData(data);
+        setNotesData(notesData);
+        setTotalViews(statsData.totalViews);
         setError(null);
       } catch (err) {
-        setError("Failed to load notes. Please try again later.");
-        console.error("Error fetching notes:", err);
+        setError("Failed to load data. Please try again later.");
+        console.error("Error fetching data:", err);
       } finally {
         setIsLoading(false);
       }
     };
 
     startTransition(() => {
-      fetchNotes();
+      fetchData();
     });
   }, [
     currentPage,
@@ -149,8 +161,9 @@ export default function Home() {
 
         {/* Stats and Leaderboard Section */}
         <div className="hidden md:flex flex-col gap-4 mb-8">
-          {/* Stats Cards - all 3 in a row */}
+          {/* Stats Cards */}
           <div className="grid grid-cols-3 gap-4">
+            {/* Total Notes Card */}
             <Card className="border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
               <CardContent className="py-3 px-4">
                 <div className="flex items-center gap-3">
@@ -169,6 +182,7 @@ export default function Home() {
               </CardContent>
             </Card>
 
+            {/* Active Users Card */}
             <Card className="border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
               <CardContent className="py-3 px-4">
                 <div className="flex items-center gap-3">
@@ -185,28 +199,33 @@ export default function Home() {
               </CardContent>
             </Card>
 
+            {/* Total Views Card */}
             <Card className="border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
               <CardContent className="py-3 px-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/5 rounded-full">
-                    <Trophy className="h-5 w-5 text-primary" />
+                    <Search className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xl font-bold text-primary">42</p>
-                    <p className="text-xs text-muted-foreground">Upload oggi</p>
+                    <p className="text-xl font-bold text-primary">
+                      {totalViews.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Visualizzazioni totali
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Leaderboard Card - full width but shorter */}
+          {/* Leaderboard Card */}
           <div className="">
             <Leaderboard />
           </div>
         </div>
 
-        {/* Mobile Leaderboard - shown between Hero and Notes sections */}
+        {/* Mobile Leaderboard */}
         <div className="md:hidden mb-6">
           <Leaderboard />
         </div>

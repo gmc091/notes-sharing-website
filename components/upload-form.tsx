@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -45,7 +45,10 @@ import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
 
+// Constants and types
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const UPLOAD_TIMEOUT = 30000; // 30 seconds
+
 const ACCEPTED_FILE_TYPES = {
   "application/pdf": [".pdf"],
   "image/jpeg": [".jpg", ".jpeg"],
@@ -54,7 +57,7 @@ const ACCEPTED_FILE_TYPES = {
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
     ".docx",
   ],
-};
+} as const;
 
 const schoolTypes = [
   {
@@ -109,7 +112,7 @@ const schoolTypes = [
       "Inglese",
     ],
   },
-];
+] as const;
 
 const years = [
   { label: "Primo anno", value: "1" },
@@ -117,8 +120,31 @@ const years = [
   { label: "Terzo anno", value: "3" },
   { label: "Quarto anno", value: "4" },
   { label: "Quinto anno", value: "5" },
-];
+] as const;
 
+interface FileWithPreview extends File {
+  preview?: string;
+  uploadProgress?: number;
+  uploadStatus?: "pending" | "uploading" | "completed" | "error";
+  error?: string;
+}
+
+interface ComboboxSelectProps {
+  items: ReadonlyArray<{ label: string; value: string } | string>;
+  selectedValues: string[];
+  onChange: (values: string[]) => void;
+  placeholder: string;
+  label: string;
+  disabled?: boolean;
+  multiple?: boolean;
+  error?: string;
+}
+
+interface UploadError extends Error {
+  details?: Array<{ message: string }>;
+}
+
+// Utility functions
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
@@ -127,36 +153,49 @@ const formatFileSize = (bytes: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
-interface FileWithPreview extends File {
-  preview?: string;
-  uploadProgress?: number;
-  uploadStatus?: "pending" | "uploading" | "completed" | "error";
-}
+const getFileIcon = (file: FileWithPreview) => {
+  const type = file.type || "";
+  if (type.includes("image")) return ImageIcon;
+  if (type.includes("pdf")) return FilePdf;
+  if (type.includes("document") || type.includes("msword")) return FileText;
+  return FileIcon;
+};
 
-interface ComboboxSelectProps {
-  items: Array<{ label: string; value: string } | string>;
-  selectedValues: string[];
-  onChange: (values: string[]) => void;
-  placeholder: string;
-  label: string;
-  disabled?: boolean;
-  multiple?: boolean;
-}
-
+// Component implementation
 const UploadForm = () => {
+  // State management
   const [title, setTitle] = useState("");
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [selectedYears, setSelectedYears] = useState<string[]>([]);
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [formSubmitted, setFormSubmitted] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
 
   const uploadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllersRef = useRef<AbortController[]>([]);
   const router = useRouter();
 
-  // Get unique subjects based on selected schools
+  // Cleanup function for aborted uploads
+  const cleanupUploads = useCallback(() => {
+    if (uploadTimeoutRef.current) {
+      clearTimeout(uploadTimeoutRef.current);
+    }
+    abortControllersRef.current.forEach((controller) => controller.abort());
+    abortControllersRef.current = [];
+  }, []);
+
+  // Cleanup function for file previews
+  const cleanupFilePreview = useCallback((file: FileWithPreview) => {
+    if (file.preview) {
+      URL.revokeObjectURL(file.preview);
+    }
+  }, []);
+
+  // Get available subjects based on selected schools
   const availableSubjects = React.useMemo(() => {
     if (selectedSchools.length === 0) return [];
     const subjects = new Set<string>();
@@ -168,72 +207,107 @@ const UploadForm = () => {
     return Array.from(subjects);
   }, [selectedSchools]);
 
-  const cleanupFilePreview = (file: FileWithPreview) => {
-    if (file.preview) {
-      URL.revokeObjectURL(file.preview);
+  // Update subjects when schools change
+  useEffect(() => {
+    if (selectedSchools.length === 0) {
+      setSelectedSubjects([]);
+      return;
     }
-  };
 
-  const getFileIcon = (file: FileWithPreview) => {
-    const type = file.type || "";
-    if (type.includes("image")) return ImageIcon;
-    if (type.includes("pdf")) return FilePdf;
-    if (type.includes("document") || type.includes("msword")) return FileText;
-    return FileIcon;
-  };
+    setSelectedSubjects((prev) =>
+      prev.filter((subject) => availableSubjects.includes(subject))
+    );
+  }, [selectedSchools, availableSubjects]);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const processedFiles = acceptedFiles
-      .map((file) => {
-        try {
-          if (file.size > MAX_FILE_SIZE) {
-            setError(`Il file ${file.name} supera il limite di 100MB`);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupUploads();
+      files.forEach(cleanupFilePreview);
+    };
+  }, [files, cleanupUploads, cleanupFilePreview]);
+
+  // File drop handler
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      if (isUploading || formSubmitted) return;
+
+      const processedFiles = acceptedFiles
+        .map((file) => {
+          try {
+            if (file.size > MAX_FILE_SIZE) {
+              setError(`Il file ${file.name} supera il limite di 100MB`);
+              return null;
+            }
+
+            const isDuplicate = files.some(
+              (existingFile) => existingFile.name === file.name
+            );
+            if (isDuplicate) {
+              setError(`Il file ${file.name} è già stato aggiunto`);
+              return null;
+            }
+
+            const preview = file.type.startsWith("image/")
+              ? URL.createObjectURL(file)
+              : undefined;
+
+            return Object.assign(file, {
+              preview,
+              uploadProgress: 0,
+              uploadStatus: "pending" as const,
+            });
+          } catch (error) {
+            console.error("Error processing file:", error);
+            setError(`Errore nel processare il file ${file.name}`);
             return null;
           }
+        })
+        .filter(Boolean) as FileWithPreview[];
 
-          const preview = file.type.startsWith("image/")
-            ? URL.createObjectURL(file)
-            : undefined;
+      if (processedFiles.length > 0) {
+        setFiles((prev) => [...prev, ...processedFiles]);
+        setError(null);
+      }
+    },
+    [files, isUploading, formSubmitted]
+  );
 
-          const processedFile: FileWithPreview = Object.assign(file, {
-            preview,
-            uploadProgress: 0,
-            uploadStatus: "pending" as const,
-          });
-
-          return processedFile;
-        } catch (error) {
-          console.error("Error processing file:", error);
-          setError(`Errore nel processare il file ${file.name}`);
-          return null;
-        }
-      })
-      .filter(Boolean) as FileWithPreview[];
-
-    setFiles((prev) => [...prev, ...processedFiles]);
-    setError(null);
-  }, []);
-
+  // Dropzone configuration
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: ACCEPTED_FILE_TYPES,
     maxSize: MAX_FILE_SIZE,
     multiple: true,
+    disabled: isUploading || formSubmitted,
+    onError: (err) => {
+      setError(err.message);
+    },
+    onDropRejected: (rejections) => {
+      const errors = rejections.map(
+        (rejection) => `${rejection.file.name}: ${rejection.errors[0]?.message}`
+      );
+      setError(errors.join(", "));
+    },
   });
 
+  // Upload function
   const uploadToR2 = async (
     file: File,
     presignedUrl: string,
     index: number,
     onProgress?: (progress: number) => void
   ): Promise<void> => {
+    const abortController = new AbortController();
+    abortControllersRef.current.push(abortController);
+
     return new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
 
       xhr.upload.addEventListener("progress", (event) => {
         if (event.lengthComputable && onProgress) {
           const percentComplete = (event.loaded / event.total) * 100;
-          onProgress(percentComplete);
+          onProgress(Math.round(percentComplete));
         }
       });
 
@@ -241,17 +315,21 @@ const UploadForm = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
         } else {
-          reject(new Error(`Upload failed with status ${xhr.status}`));
+          reject(new Error(`Caricamento fallito (${xhr.status})`));
         }
       });
 
       xhr.addEventListener("error", () => {
         console.error("XHR Error:", xhr.statusText);
-        reject(new Error("Caricamento fallito"));
+        reject(new Error("Errore durante il caricamento"));
       });
 
       xhr.addEventListener("timeout", () => {
         reject(new Error("Timeout durante il caricamento"));
+      });
+
+      xhr.addEventListener("abort", () => {
+        reject(new Error("Caricamento annullato"));
       });
 
       xhr.withCredentials = false;
@@ -268,14 +346,19 @@ const UploadForm = () => {
       uploadTimeoutRef.current = setTimeout(() => {
         xhr.abort();
         reject(new Error("Timeout durante il caricamento"));
-      }, 30000);
+      }, UPLOAD_TIMEOUT);
     }).finally(() => {
       if (uploadTimeoutRef.current) {
         clearTimeout(uploadTimeoutRef.current);
       }
+      const index = abortControllersRef.current.indexOf(abortController);
+      if (index > -1) {
+        abortControllersRef.current.splice(index, 1);
+      }
     });
   };
 
+  // Combobox Select Component
   const ComboboxSelect: React.FC<ComboboxSelectProps> = ({
     items,
     selectedValues,
@@ -284,6 +367,7 @@ const UploadForm = () => {
     label,
     disabled = false,
     multiple = false,
+    error,
   }) => {
     return (
       <div className="flex flex-col space-y-2">
@@ -296,7 +380,8 @@ const UploadForm = () => {
               disabled={disabled}
               className={cn(
                 "w-full justify-between",
-                !selectedValues.length && "text-muted-foreground"
+                !selectedValues.length && "text-muted-foreground",
+                error && "border-red-500"
               )}
             >
               <div className="flex flex-wrap items-center gap-1 py-1">
@@ -362,25 +447,45 @@ const UploadForm = () => {
             </Command>
           </PopoverContent>
         </Popover>
+        {error && <p className="text-sm text-red-500">{error}</p>}
       </div>
     );
   };
 
+  // Form submission handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (
-      !files.length ||
-      !title.trim() ||
-      !selectedSchools.length ||
-      !selectedSubjects.length ||
-      !selectedYears.length
-    ) {
+
+    // Reset errors
+    setError(null);
+    setFieldErrors({});
+
+    // Validate form
+    const newFieldErrors: Record<string, string> = {};
+    if (!title.trim()) {
+      newFieldErrors.title = "Il titolo è obbligatorio";
+    }
+    if (selectedSchools.length === 0) {
+      newFieldErrors.schools = "Seleziona almeno una scuola";
+    }
+    if (selectedSubjects.length === 0) {
+      newFieldErrors.subjects = "Seleziona almeno una materia";
+    }
+    if (selectedYears.length === 0) {
+      newFieldErrors.years = "Seleziona almeno un anno";
+    }
+    if (files.length === 0) {
+      newFieldErrors.files = "Carica almeno un file";
+    }
+
+    if (Object.keys(newFieldErrors).length > 0) {
+      setFieldErrors(newFieldErrors);
       setError("Per favore compila tutti i campi richiesti");
       return;
     }
 
     setIsUploading(true);
-    setError(null);
+    setFormSubmitted(true);
 
     try {
       const filesData = files.map((file) => ({
@@ -398,7 +503,7 @@ const UploadForm = () => {
           subjects: selectedSubjects,
           years: selectedYears,
           files: filesData,
-          isAnonymous, // Add this field
+          isAnonymous,
         }),
       });
 
@@ -445,7 +550,16 @@ const UploadForm = () => {
           } catch (error) {
             setFiles((prev) =>
               prev.map((f, i) =>
-                i === index ? { ...f, uploadStatus: "error" } : f
+                i === index
+                  ? {
+                      ...f,
+                      uploadStatus: "error",
+                      error:
+                        error instanceof Error
+                          ? error.message
+                          : "Errore sconosciuto",
+                    }
+                  : f
               )
             );
             throw error;
@@ -453,11 +567,13 @@ const UploadForm = () => {
         })
       );
 
+      // Clean up file previews before navigation
       files.forEach(cleanupFilePreview);
       router.push(`/note/${noteId}`);
     } catch (error) {
-      const uploadError = error as Error;
+      const uploadError = error as UploadError;
       setError(uploadError.message);
+      setFormSubmitted(false); // Allow retrying if upload fails
       setFiles((prev) =>
         prev.map((f) =>
           f.uploadStatus === "uploading" ? { ...f, uploadStatus: "error" } : f
@@ -468,12 +584,7 @@ const UploadForm = () => {
     }
   };
 
-  React.useEffect(() => {
-    return () => {
-      files.forEach(cleanupFilePreview);
-    };
-  }, [files]);
-
+  // JSX Return
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
@@ -488,8 +599,18 @@ const UploadForm = () => {
           onChange={(e) => setTitle(e.target.value)}
           required
           maxLength={100}
-          className="text-base transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+          className={cn(
+            "text-base transition-colors focus-visible:ring-2 focus-visible:ring-primary",
+            fieldErrors.title && "border-red-500"
+          )}
+          aria-invalid={Boolean(fieldErrors.title)}
+          aria-errormessage={fieldErrors.title ? "title-error" : undefined}
         />
+        {fieldErrors.title && (
+          <p id="title-error" className="text-sm text-red-500">
+            {fieldErrors.title}
+          </p>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -500,6 +621,7 @@ const UploadForm = () => {
           placeholder="Seleziona scuola"
           label="Scuola"
           multiple={true}
+          error={fieldErrors.schools}
         />
 
         <ComboboxSelect
@@ -510,6 +632,7 @@ const UploadForm = () => {
           label="Materia"
           disabled={selectedSchools.length === 0}
           multiple={true}
+          error={fieldErrors.subjects}
         />
 
         <ComboboxSelect
@@ -519,6 +642,7 @@ const UploadForm = () => {
           placeholder="Seleziona anno"
           label="Anno"
           multiple={true}
+          error={fieldErrors.years}
         />
       </div>
 
@@ -540,33 +664,37 @@ const UploadForm = () => {
         <CardContent className="p-6">
           <div
             {...getRootProps()}
-            className={`
-              relative border-2 border-dashed rounded-lg transition-all duration-200
-              ${
-                isDragActive
-                  ? "border-primary/70 bg-primary/5 scale-[0.99]"
-                  : "border-gray-200 hover:border-primary/40 hover:bg-gray-50/50"
-              }`}
+            className={cn(
+              "relative border-2 border-dashed rounded-lg transition-all duration-200",
+              isDragActive
+                ? "border-primary/70 bg-primary/5 scale-[0.99]"
+                : "border-gray-200 hover:border-primary/40 hover:bg-gray-50/50",
+              (isUploading || formSubmitted) &&
+                "opacity-50 pointer-events-none cursor-not-allowed",
+              fieldErrors.files && "border-red-500"
+            )}
           >
             <div className="p-8">
               <input {...getInputProps()} />
               <div className="flex flex-col items-center justify-center gap-3">
                 <div
-                  className={`
-                  p-3 rounded-full transition-colors duration-200
-                  ${isDragActive ? "bg-primary/10" : "bg-primary/5"}
-                `}
+                  className={cn(
+                    "p-3 rounded-full transition-colors duration-200",
+                    isDragActive ? "bg-primary/10" : "bg-primary/5"
+                  )}
                 >
                   <Upload
-                    className={`
-                    h-6 w-6 transition-colors duration-200
-                    ${isDragActive ? "text-primary" : "text-primary/80"}
-                  `}
+                    className={cn(
+                      "h-6 w-6 transition-colors duration-200",
+                      isDragActive ? "text-primary" : "text-primary/80"
+                    )}
                   />
                 </div>
                 <div className="text-center space-y-1">
                   <p className="text-sm font-medium text-gray-900">
-                    {isDragActive
+                    {isUploading || formSubmitted
+                      ? "Caricamento in corso..."
+                      : isDragActive
                       ? "Rilascia i file qui"
                       : "Trascina i tuoi file qui, o clicca per selezionarli"}
                   </p>
@@ -595,7 +723,12 @@ const UploadForm = () => {
               {files.map((file, index) => (
                 <Card
                   key={`${file.name}-${index}`}
-                  className="overflow-hidden border transition-all duration-200 hover:bg-gray-50/50 group"
+                  className={cn(
+                    "overflow-hidden border transition-all duration-200 group",
+                    !isUploading && !formSubmitted && "hover:bg-gray-50/50",
+                    file.uploadStatus === "error" &&
+                      "border-red-200 bg-red-50/50"
+                  )}
                 >
                   <CardContent className="p-3">
                     <div className="flex items-center gap-4">
@@ -632,9 +765,11 @@ const UploadForm = () => {
                               <p className="text-xs">{file.name}</p>
                             </TooltipContent>
                           </Tooltip>
-                          <p className="text-xs text-muted-foreground">
-                            {formatFileSize(file.size)}
-                          </p>
+                          {!isUploading && !formSubmitted && (
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(file.size)}
+                            </p>
+                          )}
                         </div>
 
                         {file.uploadStatus === "uploading" && (
@@ -643,39 +778,47 @@ const UploadForm = () => {
                             className="h-1 mt-2"
                           />
                         )}
+
+                        {file.error && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {file.error}
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-2">
                         {file.uploadStatus === "completed" && (
                           <CheckCircle2 className="h-5 w-5 text-green-500" />
                         )}
+                        {file.uploadStatus === "error" && (
+                          <AlertCircle className="h-5 w-5 text-red-500" />
+                        )}
                         {file.uploadStatus === "uploading" && (
+                          <div className="flex items-center">
+                            <span className="text-xs text-muted-foreground mr-2">
+                              {file.uploadProgress}%
+                            </span>
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          </div>
+                        )}
+                        {!isUploading && !formSubmitted && (
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              if (uploadTimeoutRef.current) {
-                                clearTimeout(uploadTimeoutRef.current);
+                              cleanupFilePreview(file);
+                              setFiles(files.filter((_, i) => i !== index));
+                              if (files.length === 1) {
+                                setError(null);
                               }
                             }}
-                            className="hover:bg-red-50 hover:text-red-600 transition-colors"
+                            className="h-8 w-8 p-0 hover:bg-gray-100 transition-colors"
+                            aria-label={`Rimuovi ${file.name}`}
                           >
-                            Annulla
+                            <X className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            cleanupFilePreview(file);
-                            setFiles(files.filter((_, i) => i !== index));
-                          }}
-                          className="h-8 w-8 p-0 hover:bg-gray-100 transition-colors"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
                   </CardContent>
@@ -686,27 +829,48 @@ const UploadForm = () => {
         </CardContent>
       </Card>
 
-      <Button
-        type="submit"
-        className="w-full transition-all duration-200"
-        disabled={
-          !files.length ||
-          !title.trim() ||
-          !selectedSchools.length ||
-          !selectedSubjects.length ||
-          !selectedYears ||
-          isUploading
-        }
-      >
-        {isUploading ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Caricamento in corso...
-          </>
-        ) : (
-          "Carica appunti"
+      <div className="space-y-4">
+        {fieldErrors.files && (
+          <p className="text-sm text-red-500">{fieldErrors.files}</p>
         )}
-      </Button>
+
+        <Button
+          type="submit"
+          className={cn(
+            "w-full transition-all duration-200",
+            isUploading && "cursor-not-allowed"
+          )}
+          disabled={
+            !files.length ||
+            !title.trim() ||
+            !selectedSchools.length ||
+            !selectedSubjects.length ||
+            !selectedYears.length ||
+            isUploading ||
+            formSubmitted
+          }
+        >
+          {isUploading ? (
+            <div className="flex items-center">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <span>Caricamento in corso...</span>
+            </div>
+          ) : formSubmitted ? (
+            <div className="flex items-center">
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              <span>Caricamento completato</span>
+            </div>
+          ) : (
+            "Carica appunti"
+          )}
+        </Button>
+
+        {isUploading && (
+          <p className="text-sm text-center text-muted-foreground">
+            Non chiudere questa pagina durante il caricamento
+          </p>
+        )}
+      </div>
     </form>
   );
 };

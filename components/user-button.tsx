@@ -186,7 +186,7 @@ export function CustomUserButton() {
               <div className="flex items-center justify-between px-3 py-2 rounded-sm hover:bg-accent hover:text-accent-foreground">
                 <div className="flex items-center gap-2">
                   <Trophy className="mr-2 h-4 w-4" />
-                  <span className="text-sm">Mostra nella classifica</span>
+                  <span className="text-sm">Appari nella classifica</span>
                 </div>
                 <Switch
                   checked={showInLeaderboard}

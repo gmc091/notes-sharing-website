@@ -14,17 +14,11 @@ interface PointsContextType {
 const PointsContext = createContext<PointsContextType | undefined>(undefined);
 
 export function PointsProvider({ children }: { children: React.ReactNode }) {
-  const { points, isLoading, fetchPoints, spendPoints } = usePoints();
-
-  const contextValue = {
-    points,
-    isLoading,
-    fetchPoints,
-    spendPoints,
-  };
+  // usePoints now uses Zustand under the hood
+  const pointsData = usePoints();
 
   return (
-    <PointsContext.Provider value={contextValue}>
+    <PointsContext.Provider value={pointsData}>
       {children}
     </PointsContext.Provider>
   );
