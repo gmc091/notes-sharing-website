@@ -126,7 +126,7 @@ export function Leaderboard() {
 
   if (loading) {
     return (
-      <Card className="h-full border">
+      <Card className="border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
         <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Trophy className="h-4 w-4 text-primary" />
@@ -151,7 +151,7 @@ export function Leaderboard() {
   }
 
   return (
-    <Card className="h-full border">
+    <Card className="border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
       <CardHeader className="pb-2 pt-4 px-4">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <Trophy className="h-4 w-4 text-primary" />

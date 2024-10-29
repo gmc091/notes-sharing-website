@@ -64,7 +64,8 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
   const hasAccess = note.isPurchased || note.isAuthor;
 
   return (
-    <Card className="group flex flex-col h-full transition-all duration-300 bg-card hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border">
+    <Card className="group flex flex-col h-full border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
+      {" "}
       <CardHeader className="space-y-3 pb-3">
         <div className="space-y-2">
           <CardTitle className="text-lg font-semibold line-clamp-2 text-primary">
@@ -144,7 +145,6 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
           </div>
         </div>
       </CardHeader>
-
       <CardContent className="flex-grow space-y-3">
         {/* File Count and Types */}
         <div className="flex items-center justify-between">
@@ -198,7 +198,6 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
           )}
         </div>
       </CardContent>
-
       <CardFooter className="pt-4">
         <Button
           asChild

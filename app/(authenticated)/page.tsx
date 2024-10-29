@@ -128,7 +128,7 @@ export default function Home() {
     <div className="min-h-[calc(100vh-4rem)] bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
         {/* Hero Section */}
-        <Card className="mb-6 sm:mb-12 border bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-50 via-white to-white overflow-hidden">
+        <Card className="mb-6 sm:mb-12 border bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-50 via-white to-white overflow-hidden hover:shadow-md transition-all duration-300">
           <CardContent className="p-6 sm:p-12">
             <div className="max-w-3xl space-y-4 sm:space-y-6">
               <div className="space-y-3 sm:space-y-4">

@@ -1,11 +1,8 @@
-// app/(authenticated)/library/page.tsx
-
 "use client";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,15 +25,15 @@ import {
   Calendar,
   ChevronDown,
   Eye,
-  Clock,
   BookOpen,
   Image as ImageIcon,
   File,
   Loader2,
+  Filter,
 } from "lucide-react";
 import type { LibraryNote } from "@/types/notes";
+import { Badge, BadgeVariant } from "@/components/ui/badge";
 
-// File type icons mapping
 const fileTypeIcons: { [key: string]: React.ElementType } = {
   pdf: FileText,
   jpg: ImageIcon,
@@ -45,16 +42,30 @@ const fileTypeIcons: { [key: string]: React.ElementType } = {
   default: File,
 };
 
-// Get file extension
 const getFileExtension = (filename: string): string => {
   return filename.split(".").pop()?.toLowerCase() || "";
 };
 
-// Get icon for file type
 const getFileIcon = (filename: string): React.ElementType => {
   const ext = getFileExtension(filename);
   return fileTypeIcons[ext] || fileTypeIcons.default;
 };
+
+function getSubjectVariant(subject: string): BadgeVariant {
+  const subjectMap: Record<string, BadgeVariant> = {
+    matematica: "math",
+    fisica: "physics",
+    chimica: "chemistry",
+    italiano: "literature",
+    storia: "history",
+    biologia: "biology",
+    arte: "art",
+    economia: "economics",
+    filosofia: "philosophy",
+  };
+
+  return subjectMap[subject.toLowerCase()] || "subject";
+}
 
 export default function LibraryPage() {
   const [notes, setNotes] = useState<LibraryNote[]>([]);
@@ -68,7 +79,6 @@ export default function LibraryPage() {
       try {
         const response = await fetch("/api/v1/users/me/library");
         if (!response.ok) throw new Error("Failed to fetch library");
-
         const data = await response.json();
         setNotes(data.notes);
       } catch (err) {
@@ -82,11 +92,8 @@ export default function LibraryPage() {
     fetchLibrary();
   }, []);
 
-  // Filter and sort notes
   const filteredAndSortedNotes = React.useMemo(() => {
     let filtered = notes;
-
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -96,7 +103,6 @@ export default function LibraryPage() {
       );
     }
 
-    // Apply sorting
     return [...filtered].sort((a, b) => {
       switch (sortBy) {
         case "title":
@@ -115,10 +121,12 @@ export default function LibraryPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-white">
+        <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
           </div>
         </div>
       </div>
@@ -127,13 +135,13 @@ export default function LibraryPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <Card>
+      <div className="min-h-screen bg-white">
+        <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+          <Card className="border-red-100 bg-red-50">
             <CardContent className="pt-6">
               <div className="text-center space-y-4">
                 <p className="text-red-600">{error}</p>
-                <Button asChild>
+                <Button asChild variant="default">
                   <Link href="/">Torna alla home</Link>
                 </Button>
               </div>
@@ -145,141 +153,145 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+    <div className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+        <div className="space-y-8">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-semibold text-gray-900">
                 La mia libreria
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Gestisci e accedi ai tuoi appunti acquistati
+              <p className="text-sm text-muted-foreground">
+                {notes.length} appunti acquistati
               </p>
             </div>
-          </div>
-
-          {/* Filters and Search */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="flex gap-4">
               <Input
                 placeholder="Cerca per titolo o materia..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className="w-64"
               />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <Filter className="mr-2 h-4 w-4" />
+                    Ordina
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[150px]">
+                  <DropdownMenuItem onClick={() => setSortBy("date")}>
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Data
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy("title")}>
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Titolo
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy("subject")}>
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Materia
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-[150px]">
-                  <Clock className="mr-2 h-4 w-4" />
-                  Ordina per
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[150px]">
-                <DropdownMenuItem onClick={() => setSortBy("date")}>
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Data
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy("title")}>
-                  <BookOpen className="mr-2 h-4 w-4" />
-                  Titolo
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy("subject")}>
-                  <BookOpen className="mr-2 h-4 w-4" />
-                  Materia
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
-        </div>
 
-        {/* Notes Table */}
-        <Card className="mt-6">
-          <CardContent className="p-0">
+          {/* Notes Table */}
+          <div className="ring-1 ring-gray-200 rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Titolo</TableHead>
-                  <TableHead>Materie</TableHead>
-                  <TableHead>Data acquisto</TableHead>
-                  <TableHead>Files</TableHead>
-                  <TableHead className="text-right">Azioni</TableHead>
+                <TableRow className="bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="font-semibold">Titolo</TableHead>
+                  <TableHead className="font-semibold">Materie</TableHead>
+                  <TableHead className="font-semibold">Data acquisto</TableHead>
+                  <TableHead className="font-semibold">Files</TableHead>
+                  <TableHead className="text-right font-semibold">
+                    Azioni
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredAndSortedNotes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      <div className="space-y-3">
-                        <p className="text-muted-foreground">
-                          {searchQuery
-                            ? "Nessun risultato trovato"
-                            : "Non hai ancora acquistato nessun appunto"}
-                        </p>
-                        {!searchQuery && (
-                          <Button asChild>
-                            <Link href="/">Sfoglia gli appunti</Link>
-                          </Button>
-                        )}
+                    <TableCell colSpan={5} className="h-64">
+                      <div className="flex flex-col items-center justify-center space-y-4">
+                        <Search className="h-8 w-8 text-muted-foreground" />
+                        <div className="text-center">
+                          <p className="text-muted-foreground">
+                            {searchQuery
+                              ? "Nessun risultato trovato"
+                              : "Non hai ancora acquistato nessun appunto"}
+                          </p>
+                          {!searchQuery && (
+                            <Button asChild className="mt-4">
+                              <Link href="/">Sfoglia gli appunti</Link>
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredAndSortedNotes.map((note) => (
-                    <TableRow key={note.id}>
-                      <TableCell>
-                        <div className="font-medium">{note.title}</div>
+                    <TableRow
+                      key={note.id}
+                      className="group hover:bg-gray-50/50 transition-colors"
+                    >
+                      <TableCell className="py-4">
+                        <div className="font-medium text-gray-900">
+                          {note.title}
+                        </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
+                      <TableCell className="py-4">
+                        <div className="flex flex-wrap gap-1.5">
                           {note.subjects.map((subject) => (
-                            <Badge key={subject} variant="secondary">
+                            <Badge
+                              key={subject}
+                              variant={getSubjectVariant(subject)}
+                            >
                               {subject}
                             </Badge>
                           ))}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="text-sm text-muted-foreground">
+                      <TableCell className="py-4">
+                        <div className="text-sm text-gray-600">
                           {new Date(note.purchasedAt).toLocaleDateString(
                             "it-IT",
                             {
                               day: "numeric",
-                              month: "short",
+                              month: "long",
                               year: "numeric",
                             }
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex -space-x-2">
-                          {note.files.slice(0, 3).map((file) => {
+                      <TableCell className="py-4">
+                        <div className="flex items-center gap-1">
+                          {note.files.map((file) => {
                             const FileIcon = getFileIcon(file.name);
                             return (
                               <div
                                 key={file.key}
-                                className="h-8 w-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center"
+                                className="p-1.5 rounded-md bg-gray-50 border border-gray-200"
                                 title={file.name}
                               >
                                 <FileIcon className="h-4 w-4 text-gray-600" />
                               </div>
                             );
                           })}
-                          {note.files.length > 3 && (
-                            <div className="h-8 w-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center">
-                              <span className="text-xs text-gray-600">
-                                +{note.files.length - 3}
-                              </span>
-                            </div>
-                          )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button asChild variant="outline" size="sm">
+                      <TableCell className="text-right py-4">
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="text-gray-700 hover:text-gray-900"
+                        >
                           <Link href={`/note/${note.id}`}>
                             <Eye className="h-4 w-4 mr-2" />
                             Visualizza
@@ -291,8 +303,8 @@ export default function LibraryPage() {
                 )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

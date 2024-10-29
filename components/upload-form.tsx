@@ -120,7 +120,7 @@ const years = [
   { label: "Terzo anno", value: "3" },
   { label: "Quarto anno", value: "4" },
   { label: "Quinto anno", value: "5" },
-] as const;
+];
 
 interface FileWithPreview extends File {
   preview?: string;
@@ -130,7 +130,7 @@ interface FileWithPreview extends File {
 }
 
 interface ComboboxSelectProps {
-  items: ReadonlyArray<{ label: string; value: string } | string>;
+  items: Array<{ label: string; value: string } | string>;
   selectedValues: string[];
   onChange: (values: string[]) => void;
   placeholder: string;
@@ -138,6 +138,7 @@ interface ComboboxSelectProps {
   disabled?: boolean;
   multiple?: boolean;
   error?: string;
+  allowDeselect?: boolean; // Add this prop
 }
 
 interface UploadError extends Error {
@@ -368,6 +369,7 @@ const UploadForm = () => {
     disabled = false,
     multiple = false,
     error,
+    allowDeselect = true, // Default to true to maintain backward compatibility
   }) => {
     return (
       <div className="flex flex-col space-y-2">
@@ -421,6 +423,10 @@ const UploadForm = () => {
                       <CommandItem
                         key={itemValue}
                         onSelect={() => {
+                          if (isSelected && !allowDeselect) {
+                            // Don't allow deselection if allowDeselect is false
+                            return;
+                          }
                           if (multiple) {
                             onChange(
                               isSelected
@@ -622,6 +628,7 @@ const UploadForm = () => {
           label="Scuola"
           multiple={true}
           error={fieldErrors.schools}
+          allowDeselect={false}
         />
 
         <ComboboxSelect
@@ -633,6 +640,7 @@ const UploadForm = () => {
           disabled={selectedSchools.length === 0}
           multiple={true}
           error={fieldErrors.subjects}
+          allowDeselect={false}
         />
 
         <ComboboxSelect
@@ -643,6 +651,7 @@ const UploadForm = () => {
           label="Anno"
           multiple={true}
           error={fieldErrors.years}
+          allowDeselect={false}
         />
       </div>
 

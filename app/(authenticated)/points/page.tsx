@@ -187,7 +187,7 @@ export default function PointsHistoryPage() {
         <div className="space-y-6">
           {/* Points Overview Cards */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
+            <Card className="border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Punti Totali
@@ -206,7 +206,7 @@ export default function PointsHistoryPage() {
 
             {stats && (
               <>
-                <Card>
+                <Card className="border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Punti Guadagnati
@@ -223,7 +223,7 @@ export default function PointsHistoryPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Punti Spesi
@@ -240,7 +240,7 @@ export default function PointsHistoryPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Transazioni
@@ -261,7 +261,7 @@ export default function PointsHistoryPage() {
           </div>
 
           {/* Quick Actions */}
-          <Card>
+          <Card className="border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
             <CardContent className="pt-6">
               <div className="flex flex-wrap gap-4">
                 <Button asChild>
@@ -275,7 +275,7 @@ export default function PointsHistoryPage() {
           </Card>
 
           {/* Transactions Table */}
-          <Card>
+          <Card className="border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
             <CardHeader>
               <CardTitle>Storico transazioni</CardTitle>
               <CardDescription>
