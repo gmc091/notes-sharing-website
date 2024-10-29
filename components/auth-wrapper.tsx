@@ -1,16 +1,26 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, SignOutButton } from "@clerk/nextjs";
+import {
+  LogIn,
+  UserPlus,
+  LogOut,
+  Mail,
+  AlertCircle,
+  Loader2,
+  CheckCircle2,
+} from "lucide-react";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, LogIn, UserPlus, LogOut, Mail } from "lucide-react";
-import { SignInButton, SignUpButton, SignOutButton } from "@clerk/nextjs";
+import { Separator } from "@/components/ui/separator";
 
 const AUTHORIZED_EMAILS = [
   "@liceoaprosio.it",
@@ -24,7 +34,7 @@ export default function AuthWrapper({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const userEmail = user?.primaryEmailAddress?.emailAddress;
   const isAuthorized = userEmail
     ? AUTHORIZED_EMAILS.some(
@@ -32,96 +42,148 @@ export default function AuthWrapper({
       )
     : false;
 
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4">
-        <div className="w-full max-w-2xl relative">
-          {/* Decorative gradient elements */}
-          <div
-            className="absolute inset-0 -z-10 transform-gpu overflow-hidden"
-            aria-hidden="true"
-          >
-            <div
-              className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#87CEEB] to-[#4682B4] opacity-20"
-              style={{
-                clipPath:
-                  "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
-              }}
-            />
-          </div>
+      <div className="min-h-screen bg-gray-50">
+        <div className="w-full min-h-screen flex items-center justify-center px-4 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-10">
+          <div className="w-full max-w-[1400px] grid grid-cols-1 lg:grid-cols-7 gap-6 items-stretch">
+            {/* Features Card - Left */}
+            <Card className="hidden lg:flex lg:col-span-2 border bg-white hover:shadow-md transition-all duration-300">
+              <CardContent className="flex flex-col justify-between p-4 sm:p-6">
+                <div className="space-y-6">
+                  <div className="flex gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+                    <div>
+                      <h3 className="font-medium mb-1">
+                        Condivisione semplice
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Carica e condividi i tuoi appunti con tutta la scuola
+                      </p>
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="flex gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+                    <div>
+                      <h3 className="font-medium mb-1">Guadagna punti</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Ottieni punti per ogni contributo che fai alla community
+                      </p>
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="flex gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+                    <div>
+                      <h3 className="font-medium mb-1">Accesso istantaneo</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Trova e accedi agli appunti di cui hai bisogno in pochi
+                        click
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card className="w-full bg-white border shadow-lg">
-            <CardHeader className="space-y-1 text-center pb-0">
-              <CardTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 text-transparent bg-clip-text">
-                Appunti Liceo Aprosio
-              </CardTitle>
-              <CardDescription className="text-gray-500">
-                Accedi alla piattaforma con il tuo account scolastico
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-8">
-              <div className="space-y-4">
-                <SignInButton mode="modal" fallbackRedirectUrl="/">
+            {/* Main Auth Card - Center */}
+            <Card className="lg:col-span-3 border bg-white hover:shadow-md transition-all duration-300">
+              <CardHeader className="space-y-2 text-center p-4 sm:p-6">
+                <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  Appunti Liceo Aprosio
+                </CardTitle>
+                <CardDescription className="text-base text-gray-600">
+                  La piattaforma degli studenti
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-4 px-4 sm:px-6">
+                <SignInButton mode="modal">
                   <Button
                     variant="outline"
-                    className="w-full justify-center h-11 text-base hover:bg-gray-50"
+                    size="lg"
+                    className="w-full text-base hover:bg-gray-50 transition-colors"
                   >
                     <LogIn className="mr-2 h-5 w-5" />
                     Accedi
                   </Button>
                 </SignInButton>
-                <SignUpButton mode="modal" fallbackRedirectUrl="/">
-                  <Button className="w-full justify-center h-11 text-base bg-primary hover:bg-primary/90">
+                <SignUpButton mode="modal">
+                  <Button
+                    size="lg"
+                    className="w-full text-base bg-primary hover:bg-primary/90 transition-colors"
+                  >
                     <UserPlus className="mr-2 h-5 w-5" />
                     Crea account
                   </Button>
                 </SignUpButton>
-              </div>
+              </CardContent>
 
-              <div className="space-y-4">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-muted-foreground">
-                      Informazioni importanti
-                    </span>
+              <CardFooter className="p-4 sm:p-6">
+                <div className="rounded-lg border p-4 w-full">
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <Mail className="h-5 w-5 flex-shrink-0" />
+                    <p className="text-sm">
+                      Utilizza{" "}
+                      <span className="font-medium text-foreground">
+                        nome.cognome@liceoaprosio.it
+                      </span>{" "}
+                      per accedere
+                    </p>
                   </div>
                 </div>
+              </CardFooter>
+            </Card>
 
-                <div className="rounded-lg bg-blue-50 p-4 border border-blue-100">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <Mail
-                        className="h-5 w-5 text-blue-400"
-                        aria-hidden="true"
-                      />
+            {/* Features Card - Right */}
+            <Card className="hidden lg:flex lg:col-span-2 border bg-white hover:shadow-md transition-all duration-300">
+              <CardContent className="flex flex-col justify-between p-4 sm:p-6">
+                <div className="space-y-6">
+                  <div className="flex gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+                    <div>
+                      <h3 className="font-medium mb-1">
+                        Organizzazione facile
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Trova rapidamente gli appunti per materia e anno
+                      </p>
                     </div>
-                    <div className="ml-3">
-                      <p className="text-sm text-blue-700">
-                        È necessario utilizzare l&apos;email istituzionale{" "}
-                        <span className="font-medium">@liceoaprosio.it</span>
+                  </div>
+                  <Separator />
+                  <div className="flex gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+                    <div>
+                      <h3 className="font-medium mb-1">Community attiva</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Unisciti a una community di studenti che collaborano
+                      </p>
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="flex gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+                    <div>
+                      <h3 className="font-medium mb-1">Sempre aggiornato</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Nuovi appunti vengono aggiunti ogni giorno
                       </p>
                     </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Second gradient effect */}
-          <div
-            className="absolute inset-0 -z-10 transform-gpu overflow-hidden"
-            aria-hidden="true"
-          >
-            <div
-              className="relative left-[calc(50%+11rem)] aspect-[1155/678] w-[36.125rem] translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#87CEEB] to-[#4682B4] opacity-20"
-              style={{
-                clipPath:
-                  "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
-              }}
-            />
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
@@ -130,44 +192,44 @@ export default function AuthWrapper({
 
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center p-4">
-        <div className="w-full max-w-2xl">
-          <Card className="w-full border bg-white shadow-lg">
-            <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <AlertCircle className="w-8 h-8 text-red-600" />
+      <div className="min-h-screen bg-gray-50">
+        <div className="w-full min-h-screen flex items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
+          <Card className="w-full max-w-md border bg-white hover:shadow-md transition-all duration-300">
+            <CardHeader className="space-y-4 text-center p-4 sm:p-6">
+              <div className="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="h-6 w-6 text-red-600" />
               </div>
-              <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900">
+              <CardTitle className="text-2xl font-bold text-gray-900">
                 Accesso non autorizzato
               </CardTitle>
+              <CardDescription className="text-base text-gray-600">
+                Questa piattaforma è riservata agli studenti del Liceo Aprosio
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-8">
-              <div className="space-y-4 text-center">
-                <p className="text-gray-600 text-lg">
-                  Ci dispiace, ma questa piattaforma è riservata agli studenti
-                  del Liceo Aprosio.
+            <CardContent className="space-y-6 p-4 sm:p-6">
+              <div className="rounded-lg bg-red-50 p-4 text-sm border border-red-100">
+                <p className="text-red-600">
+                  Account attuale:{" "}
+                  <span className="font-medium">{userEmail}</span>
                 </p>
-                <div className="bg-red-50 p-6 rounded-lg border border-red-100">
-                  <p className="text-base text-red-600">
-                    Account attuale:{" "}
-                    <span className="font-semibold">{userEmail}</span>
-                  </p>
-                </div>
               </div>
 
               <div className="space-y-4">
                 <SignOutButton>
                   <Button
                     variant="destructive"
-                    className="w-full h-11 text-base justify-center"
+                    size="lg"
+                    className="w-full transition-colors"
                   >
                     <LogOut className="mr-2 h-5 w-5" />
-                    Esci e accedi con un altro account
+                    Cambia account
                   </Button>
                 </SignOutButton>
                 <p className="text-sm text-center text-muted-foreground">
-                  Se pensi che questo sia un errore, contatta{" "}
-                  <b> appunti.liceo.aprosio@gmail.com</b>
+                  Per assistenza, contatta{" "}
+                  <span className="font-medium">
+                    appunti.liceo.aprosio@gmail.com
+                  </span>
                 </p>
               </div>
             </CardContent>
@@ -177,5 +239,5 @@ export default function AuthWrapper({
     );
   }
 
-  return <body className="flex flex-col min-h-full">{children}</body>;
+  return <div className="flex flex-col min-h-screen">{children}</div>;
 }
