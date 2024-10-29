@@ -125,7 +125,6 @@ export function NoteViewer({ note }: NoteViewerProps) {
             note={note}
             isAuthor={isAuthor}
             isPurchased={isPurchased}
-            userPoints={userPoints}
           />
 
           <NoteTabs
