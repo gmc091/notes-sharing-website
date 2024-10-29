@@ -24,6 +24,7 @@ export interface Note {
   purchaseCount: number;
   isAuthor?: boolean;
   isPurchased?: boolean;
+  userId?: string; // Added to handle author identification
 }
 
 export interface NotesApiResponse {

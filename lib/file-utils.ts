@@ -53,32 +53,33 @@ const RESERVED_FILENAMES = new Set([
 ]);
 
 // File Types Configuration
+
 export const fileTypeConfig = new Map<string, FileTypeInfo>([
-  ["pdf", { icon: FileText, color: "text-red-500", variant: "pdf" }],
-  ["doc", { icon: FileText, color: "text-blue-500", variant: "document" }],
-  ["docx", { icon: FileText, color: "text-blue-500", variant: "document" }],
-  ["txt", { icon: FileText, color: "text-gray-500", variant: "document" }],
+  ["pdf", { icon: FileText, color: "text-red-500", variant: "destructive" }],
+  ["doc", { icon: FileText, color: "text-blue-500", variant: "secondary" }],
+  ["docx", { icon: FileText, color: "text-blue-500", variant: "secondary" }],
+  ["txt", { icon: FileText, color: "text-gray-500", variant: "secondary" }],
   [
     "xls",
-    { icon: FileSpreadsheet, color: "text-green-500", variant: "spreadsheet" },
+    { icon: FileSpreadsheet, color: "text-green-500", variant: "secondary" },
   ],
   [
     "xlsx",
-    { icon: FileSpreadsheet, color: "text-green-500", variant: "spreadsheet" },
+    { icon: FileSpreadsheet, color: "text-green-500", variant: "secondary" },
   ],
-  ["ppt", { icon: FileText, color: "text-orange-500", variant: "document" }],
-  ["pptx", { icon: FileText, color: "text-orange-500", variant: "document" }],
-  ["jpg", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
-  ["jpeg", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
-  ["png", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
-  ["gif", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
-  ["webp", { icon: ImageIcon, color: "text-purple-500", variant: "image" }],
-  ["json", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
-  ["js", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
-  ["css", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
-  ["html", { icon: FileCode, color: "text-yellow-500", variant: "code" }],
-  ["mp4", { icon: FileVideo, color: "text-pink-500", variant: "media" }],
-  ["mp3", { icon: FileAudio, color: "text-pink-500", variant: "media" }],
+  ["ppt", { icon: FileText, color: "text-orange-500", variant: "secondary" }],
+  ["pptx", { icon: FileText, color: "text-orange-500", variant: "secondary" }],
+  ["jpg", { icon: ImageIcon, color: "text-purple-500", variant: "secondary" }],
+  ["jpeg", { icon: ImageIcon, color: "text-purple-500", variant: "secondary" }],
+  ["png", { icon: ImageIcon, color: "text-purple-500", variant: "secondary" }],
+  ["gif", { icon: ImageIcon, color: "text-purple-500", variant: "secondary" }],
+  ["webp", { icon: ImageIcon, color: "text-purple-500", variant: "secondary" }],
+  ["json", { icon: FileCode, color: "text-yellow-500", variant: "secondary" }],
+  ["js", { icon: FileCode, color: "text-yellow-500", variant: "secondary" }],
+  ["css", { icon: FileCode, color: "text-yellow-500", variant: "secondary" }],
+  ["html", { icon: FileCode, color: "text-yellow-500", variant: "secondary" }],
+  ["mp4", { icon: FileVideo, color: "text-pink-500", variant: "secondary" }],
+  ["mp3", { icon: FileAudio, color: "text-pink-500", variant: "secondary" }],
 ]);
 
 // File Type Checks
@@ -132,11 +133,10 @@ export const getFileTypeInfo = (filename: string): FileTypeInfo => {
     fileTypeConfig.get(ext) || {
       icon: File,
       color: "text-gray-500",
-      variant: "secondary",
+      variant: "secondary" as const, // Explicitly type as BadgeVariant
     }
   );
 };
-
 // Filename Validation and Generation
 export const validateFilename = (filename: string): boolean => {
   // Check for empty filename

@@ -1,4 +1,3 @@
-// app/(authenticated)/note/[noteId]/note-viewer.tsx
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
@@ -10,6 +9,7 @@ import { toast } from "sonner";
 import { NoteViewerHeader } from "@/components/notes/note-viewer-header";
 import { NoteTabs } from "@/components/notes/note-tabs";
 import { PurchaseDialog } from "@/components/notes/purchase-dialog";
+import { usePoints } from "@/stores/points-store";
 import type { Note, NoteFile, ViewerFile } from "@/types/notes";
 
 const toViewerFile = (file: NoteFile): ViewerFile | null => {
@@ -30,8 +30,9 @@ export function NoteViewer({ note }: NoteViewerProps) {
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
   const [isPurchased, setIsPurchased] = useState(note.isPurchased || false);
   const [isAuthor] = useState(note.isAuthor || false);
-  const [userPoints, setUserPoints] = useState<number | null>(null);
   const [activeFile, setActiveFile] = useState<ViewerFile | null>(null);
+
+  const { spendPoints, earnPoints } = usePoints();
 
   // Set initial active file when note data is available
   useEffect(() => {
@@ -44,50 +45,44 @@ export function NoteViewer({ note }: NoteViewerProps) {
     }
   }, [note?.files]);
 
-  // Fetch user points
+  // Show purchase dialog if needed
   useEffect(() => {
-    async function fetchUserPoints() {
-      try {
-        const pointsRes = await fetch("/api/v1/users/me/points");
-        if (!pointsRes.ok) {
-          throw new Error("Failed to fetch user points");
-        }
-        const pointsData = await pointsRes.json();
-        setUserPoints(pointsData.points);
-
-        if (!isPurchased && !isAuthor) {
-          setShowPurchaseDialog(true);
-        }
-      } catch (error) {
-        console.error("Error fetching user points:", error);
-        toast.error("Errore nel caricamento dei punti utente");
-      }
+    if (!isPurchased && !isAuthor) {
+      setShowPurchaseDialog(true);
     }
-
-    fetchUserPoints();
   }, [isPurchased, isAuthor]);
 
   const handlePurchase = async () => {
     try {
-      const res = await fetch("/api/v1/users/me/points", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "PURCHASE",
-          noteId: note.id,
-        }),
-      });
+      const spendSuccess = await spendPoints(
+        1,
+        "PURCHASE_SPENT",
+        `Acquisto nota #${note.id}`
+      );
 
-      if (!res.ok) {
-        throw new Error("Failed to purchase note");
+      if (!spendSuccess) {
+        throw new Error("Failed to spend points");
       }
 
-      const pointsRes = await fetch("/api/v1/users/me/points");
-      const pointsData = await pointsRes.json();
+      // If note has an author (not anonymous), award them a point
+      if (note.userId) {
+        await earnPoints(
+          1,
+          "PURCHASE_EARNED",
+          `La nota #${note.id} è stata acquistata`
+        );
+      }
+      // Update purchase status in database
+      const purchaseRes = await fetch(`/api/v1/notes/${note.id}/purchase`, {
+        method: "POST",
+      });
+
+      if (!purchaseRes.ok) {
+        throw new Error("Failed to record purchase");
+      }
 
       setShowPurchaseDialog(false);
       setIsPurchased(true);
-      setUserPoints(pointsData.points);
       toast.success("Nota acquistata con successo!");
     } catch (error) {
       console.error("Error purchasing note:", error);
@@ -141,7 +136,6 @@ export function NoteViewer({ note }: NoteViewerProps) {
           isOpen={showPurchaseDialog}
           onConfirm={handlePurchase}
           onCancel={() => router.push("/")}
-          currentPoints={userPoints}
         />
       </div>
     </div>

@@ -5,7 +5,6 @@ import TermsDialog from "@/components/terms-of-service";
 import { Navbar } from "@/components/navbar";
 import Footer from "@/components/footer";
 import { Toaster } from "@/components/ui/sonner";
-import { PointsProvider } from "@/context/points-context";
 
 export default function AuthenticatedLayout({
   children,
@@ -15,13 +14,11 @@ export default function AuthenticatedLayout({
   return (
     <TooltipProvider>
       <UserWrapper>
-        <PointsProvider>
-          <TermsDialog />
-          <Navbar />
-          <main className="flex-grow bg-gray-50">{children}</main>
-          <Footer />
-          <Toaster />
-        </PointsProvider>
+        <TermsDialog />
+        <Navbar />
+        <main className="flex-grow bg-gray-50">{children}</main>
+        <Footer />
+        <Toaster />
       </UserWrapper>
     </TooltipProvider>
   );

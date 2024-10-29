@@ -1,10 +1,9 @@
-// components/notes/note-viewer-header.tsx
 import React from "react";
 import { CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Info } from "lucide-react";
 import type { Note } from "@/types/notes";
-import { PointsDisplay } from "@/components/points-display";
+import PointsDisplay from "@/components/points-display";
 
 interface NoteViewerHeaderProps {
   note: Note;
@@ -40,7 +39,11 @@ export const NoteViewerHeader: React.FC<NoteViewerHeaderProps> = ({
         </CardDescription>
       </div>
       <div className="flex items-center gap-2">
-        <PointsDisplay variant="badge" />
+        <PointsDisplay
+          variant="badge"
+          showTooltip={true}
+          className="bg-primary/5"
+        />
         <Badge variant="secondary" className="text-sm">
           {note.files.length} {note.files.length === 1 ? "file" : "files"}
         </Badge>
@@ -52,7 +55,7 @@ export const NoteViewerHeader: React.FC<NoteViewerHeaderProps> = ({
         <div className="flex flex-wrap gap-2">
           <span className="text-sm text-muted-foreground">Scuole:</span>
           {note.schools.map((school) => (
-            <Badge key={school} variant="school">
+            <Badge key={school} variant="outline">
               {school}
             </Badge>
           ))}
@@ -74,7 +77,7 @@ export const NoteViewerHeader: React.FC<NoteViewerHeaderProps> = ({
         <div className="flex flex-wrap gap-2">
           <span className="text-sm text-muted-foreground">Anni:</span>
           {note.years.map((year) => (
-            <Badge key={year} variant="year">
+            <Badge key={year} variant="secondary">
               Anno {year}
             </Badge>
           ))}
