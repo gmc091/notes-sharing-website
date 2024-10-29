@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -65,31 +64,29 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
 
   return (
     <Card className="group flex flex-col h-full border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
-      {" "}
       <CardHeader className="space-y-3 pb-3">
         <div className="space-y-2">
           <CardTitle className="text-lg font-semibold line-clamp-2 text-primary">
             {note.title}
           </CardTitle>
-          <CardDescription className="flex items-center gap-2 text-xs">
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" />
               <time dateTime={note.createdAt} className="text-muted-foreground">
                 {formattedTime}
               </time>
-            </div>
+            </span>
             <Separator orientation="vertical" className="h-3" />
-            <div className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
               <time dateTime={note.createdAt} className="text-muted-foreground">
                 {formattedDate}
               </time>
-            </div>
-          </CardDescription>
+            </span>
+          </div>
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            {/* Purchase Count */}
             <Tooltip>
               <TooltipTrigger className="flex items-center gap-1 text-sm text-muted-foreground">
                 <Eye className="h-4 w-4" />
@@ -103,7 +100,6 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Owner Badge - Only show if user is the author */}
             {note.isAuthor && (
               <Tooltip>
                 <TooltipTrigger>
@@ -116,7 +112,6 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
               </Tooltip>
             )}
 
-            {/* Access Status Indicator */}
             <Tooltip>
               <TooltipTrigger>
                 <Badge
@@ -145,8 +140,10 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
           </div>
         </div>
       </CardHeader>
+
       <CardContent className="flex-grow space-y-3">
-        {/* File Count and Types */}
+        <Separator className="bg-border/60 -mt-1" />
+
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <ScrollText className="h-4 w-4 text-muted-foreground" />
@@ -166,10 +163,8 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
             ))}
           </div>
         </div>
+        <Separator className="bg-border/60 -mt-1" />
 
-        <Separator className="bg-border/60" />
-
-        {/* File Preview List */}
         <div className="space-y-3">
           {note.files.slice(0, 2).map((file, index) => (
             <div key={index}>
