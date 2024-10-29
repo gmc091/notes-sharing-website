@@ -1,3 +1,4 @@
+// stores/points-store.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ interface Transaction {
   type: TransactionType;
   amount: number;
   description: string;
+  noteId?: number; // Added for purchase transactions
 }
 
 interface PointsState {
@@ -30,7 +32,6 @@ interface PointsActions {
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-// Transaction configurations
 const TRANSACTION_CONFIGS = {
   UPLOAD_REWARD: {
     message: (amount: number) =>
@@ -72,13 +73,11 @@ const TRANSACTION_CONFIGS = {
 export const usePointsStore = create<PointsState & PointsActions>()(
   persist(
     (set, get) => ({
-      // State
       points: null,
       lastFetched: null,
       isLoading: false,
       error: null,
 
-      // Actions
       setPoints: (points) => {
         set({ points, lastFetched: Date.now(), isLoading: false });
       },
@@ -87,7 +86,7 @@ export const usePointsStore = create<PointsState & PointsActions>()(
         const state = get();
         const now = Date.now();
 
-        // Return cached data if valid
+        // Return early if we have fresh cached data
         if (
           state.points !== null &&
           state.lastFetched &&
@@ -96,7 +95,7 @@ export const usePointsStore = create<PointsState & PointsActions>()(
           return;
         }
 
-        // Prevent multiple simultaneous requests
+        // Return if already loading
         if (state.isLoading) return;
 
         set({ isLoading: true });
@@ -106,6 +105,7 @@ export const usePointsStore = create<PointsState & PointsActions>()(
           if (!response.ok) throw new Error("Failed to fetch points");
 
           const data = await response.json();
+          // Single state update
           set({
             points: data.points,
             lastFetched: now,
@@ -113,9 +113,11 @@ export const usePointsStore = create<PointsState & PointsActions>()(
             isLoading: false,
           });
         } catch (err) {
+          // Single state update for error
           set({
             error: "Unable to load points",
             isLoading: false,
+            lastFetched: now,
           });
           console.error("Error fetching points:", err);
         }
@@ -124,7 +126,6 @@ export const usePointsStore = create<PointsState & PointsActions>()(
       executeTransaction: async (transaction) => {
         const { points: currentPoints } = get();
 
-        // Validate spending transactions
         if (
           transaction.amount < 0 &&
           (currentPoints === null ||
@@ -135,35 +136,47 @@ export const usePointsStore = create<PointsState & PointsActions>()(
         }
 
         try {
-          // Optimistic update
-          const newPoints = (currentPoints ?? 0) + transaction.amount;
-          set({ points: newPoints });
+          const requestBody =
+            transaction.type === "PURCHASE_SPENT"
+              ? {
+                  action: "PURCHASE",
+                  noteId: transaction.noteId,
+                }
+              : {
+                  type: transaction.type,
+                  amount: transaction.amount,
+                  description: transaction.description,
+                };
 
           const response = await fetch("/api/v1/users/me/points", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: transaction.type,
-              amount: transaction.amount,
-              description: transaction.description,
-            }),
+            body: JSON.stringify(requestBody),
           });
 
           if (!response.ok) throw new Error("Transaction failed");
 
           const data = await response.json();
-          set({ points: data.points });
 
-          // Show transaction notification
+          // Force a fresh fetch to ensure we have the latest data
+          set({
+            points: data.points,
+            lastFetched: null, // This will force a refresh on next fetch
+          });
+
+          // Fetch fresh data
+          await get().fetchPoints();
+
           const config = TRANSACTION_CONFIGS[transaction.type];
-          toast[config.type](config.message(transaction.amount));
+          toast[config.type](config.message(Math.abs(transaction.amount)));
 
           return true;
         } catch (error) {
-          // Rollback on error
-          set({ points: currentPoints });
           console.error("Transaction error:", error);
           toast.error("Errore durante la transazione");
+          // Force a fresh fetch on error to ensure consistency
+          set({ lastFetched: null });
+          await get().fetchPoints();
           return false;
         }
       },
@@ -178,7 +191,7 @@ export const usePointsStore = create<PointsState & PointsActions>()(
   )
 );
 
-// Hooks for common point operations
+// Hook for common point operations
 export function usePoints() {
   const store = usePointsStore();
 
@@ -200,12 +213,14 @@ export function usePoints() {
   const spendPoints = async (
     amount: number,
     type: Extract<TransactionType, "VIEW_SPENT" | "PURCHASE_SPENT">,
-    description: string
+    description: string,
+    noteId?: number
   ) => {
     return store.executeTransaction({
       type,
       amount: -Math.abs(amount),
       description,
+      noteId,
     });
   };
 

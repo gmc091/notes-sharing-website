@@ -20,7 +20,7 @@ export async function getUserPoints(userId: string): Promise<number> {
     const newUser = await prisma.user.create({
       data: {
         clerkId: userId,
-        points: 5, // Starting points
+        points: 5,
       },
       select: { points: true },
     });
@@ -36,6 +36,19 @@ export async function createPointTransaction(
   const { userId, amount, type, description } = transaction;
 
   await prisma.$transaction(async (tx) => {
+    // Verify user has enough points for negative transactions
+    if (amount < 0) {
+      const user = await tx.user.findUnique({
+        where: { clerkId: userId },
+        select: { points: true },
+      });
+
+      if (!user || user.points < Math.abs(amount)) {
+        throw new Error("Insufficient points");
+      }
+    }
+
+    // Create transaction record
     await tx.pointTransaction.create({
       data: {
         userId,
@@ -45,6 +58,7 @@ export async function createPointTransaction(
       },
     });
 
+    // Update user's points
     await tx.user.update({
       where: { clerkId: userId },
       data: {

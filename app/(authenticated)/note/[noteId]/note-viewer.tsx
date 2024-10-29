@@ -57,28 +57,20 @@ export function NoteViewer({ note }: NoteViewerProps) {
       const spendSuccess = await spendPoints(
         1,
         "PURCHASE_SPENT",
-        `Acquisto nota #${note.id}`
+        `Acquisto nota #${note.id}`,
+        note.id // Pass the noteId
       );
 
       if (!spendSuccess) {
         throw new Error("Failed to spend points");
       }
 
-      // If note has an author (not anonymous), award them a point
       if (note.userId) {
         await earnPoints(
           1,
           "PURCHASE_EARNED",
           `La nota #${note.id} è stata acquistata`
         );
-      }
-      // Update purchase status in database
-      const purchaseRes = await fetch(`/api/v1/notes/${note.id}/purchase`, {
-        method: "POST",
-      });
-
-      if (!purchaseRes.ok) {
-        throw new Error("Failed to record purchase");
       }
 
       setShowPurchaseDialog(false);

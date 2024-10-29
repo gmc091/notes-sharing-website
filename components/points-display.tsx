@@ -23,19 +23,18 @@ function PointsDisplayComponent({
   showIcon = true,
   showTooltip = true,
 }: PointsDisplayProps) {
-  const { points, isLoading, error, fetchPoints } = usePointsStore();
+  // Use specific selectors to prevent unnecessary rerenders
+  const points = usePointsStore((state) => state.points);
+  const isLoading = usePointsStore((state) => state.isLoading);
+  const error = usePointsStore((state) => state.error);
+  const fetchPoints = usePointsStore((state) => state.fetchPoints);
+
   const isMobile = useMediaQuery("(max-width: 640px)");
 
-  // Fetch points on mount and set up refresh interval
+  // Fetch points only on mount
   useEffect(() => {
-    // Initial fetch
     fetchPoints();
-
-    // Refresh every 5 minutes
-    const intervalId = setInterval(fetchPoints, 5 * 60 * 1000);
-
-    return () => clearInterval(intervalId);
-  }, [fetchPoints]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const content = (
     <div
@@ -56,7 +55,7 @@ function PointsDisplayComponent({
           )}
         />
       )}
-      {isLoading && !points ? (
+      {isLoading && points === null ? (
         <Skeleton className="h-4 w-12" />
       ) : error ? (
         <div className="flex items-center gap-1 text-destructive">
@@ -106,5 +105,5 @@ function PointsDisplayComponent({
 // Named export for backward compatibility
 export const PointsDisplay = PointsDisplayComponent;
 
-// Default export for new usage
+// Default export
 export default PointsDisplayComponent;
