@@ -32,6 +32,7 @@ const fileSchema = z.object({
 
 const uploadSchema = z.object({
   title: z.string().min(1, "Title is required").max(100).trim(),
+  description: z.string().max(500).optional(), // New field
   schools: z
     .array(z.string())
     .min(1)
@@ -125,10 +126,11 @@ export async function POST(request: Request) {
       const note = await tx.note.create({
         data: {
           title: validatedData.title,
+          description: validatedData.description, // Add description
           schools: validatedData.schools,
           subjects: validatedData.subjects,
           years: validatedData.years.map(Number),
-          filePaths: [], // Will be updated after file upload
+          filePaths: [],
           createdAt: new Date(),
           userId,
           isAnonymous: validatedData.isAnonymous,

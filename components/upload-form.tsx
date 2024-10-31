@@ -20,6 +20,7 @@ import {
   FileText,
   Check,
   ChevronsUpDown,
+  Info,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -44,10 +45,12 @@ import { cn } from "@/lib/utils";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
+import { Textarea } from "./ui/textarea";
 
 // Constants and types
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const UPLOAD_TIMEOUT = 30000; // 30 seconds
+const MAX_DESCRIPTION_LENGTH = 500;
 
 const ACCEPTED_FILE_TYPES = {
   "application/pdf": [".pdf"],
@@ -175,6 +178,8 @@ const UploadForm = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [description, setDescription] = useState("");
+  const [descriptionError, setDescriptionError] = useState<string | null>(null);
 
   const uploadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllersRef = useRef<AbortController[]>([]);
@@ -188,6 +193,21 @@ const UploadForm = () => {
     abortControllersRef.current.forEach((controller) => controller.abort());
     abortControllersRef.current = [];
   }, []);
+
+  const handleDescriptionChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>
+  ) => {
+    const newDescription = e.target.value;
+    setDescription(newDescription);
+
+    if (newDescription.length > MAX_DESCRIPTION_LENGTH) {
+      setDescriptionError(
+        `La descrizione non può superare ${MAX_DESCRIPTION_LENGTH} caratteri`
+      );
+    } else {
+      setDescriptionError(null);
+    }
+  };
 
   // Cleanup function for file previews
   const cleanupFilePreview = useCallback((file: FileWithPreview) => {
@@ -617,6 +637,42 @@ const UploadForm = () => {
             {fieldErrors.title}
           </p>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <label
+          htmlFor="description"
+          className="text-sm font-medium text-gray-900"
+        >
+          Descrizione
+        </label>
+        <Textarea
+          id="description"
+          placeholder="Aggiungi una breve descrizione dei tuoi appunti..."
+          value={description}
+          onChange={handleDescriptionChange}
+          className={cn(
+            "resize-none min-h-[100px]",
+            descriptionError && "border-red-500"
+          )}
+        />
+        <div className="flex justify-between items-center text-xs">
+          <span
+            className={cn(
+              "text-muted-foreground",
+              description.length > MAX_DESCRIPTION_LENGTH && "text-red-500"
+            )}
+          >
+            {description.length}/{MAX_DESCRIPTION_LENGTH} caratteri
+          </span>
+          {descriptionError && (
+            <span className="text-red-500">{descriptionError}</span>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground flex items-center gap-1">
+          <Info className="h-3 w-3" />
+          Descrivi brevemente il contenuto dei tuoi appunti
+        </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

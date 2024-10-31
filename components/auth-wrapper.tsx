@@ -28,6 +28,7 @@ const AUTHORIZED_EMAILS = [
   "appunti.liceo.aprosio@gmail.com",
   "giovanni.croese.max@gmail.com",
   "reggia.dev@gmail.com",
+  "emanuelevogrl07@gmail.com",
 ];
 
 export default function AuthWrapper({
