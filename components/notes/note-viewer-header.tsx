@@ -1,7 +1,8 @@
+// components/note-viewer-header.tsx
 import React from "react";
 import { CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Info } from "lucide-react";
+import { Info, User } from "lucide-react";
 import type { Note } from "@/types/notes";
 import PointsDisplay from "@/components/points-display";
 
@@ -26,17 +27,25 @@ export const NoteViewerHeader: React.FC<NoteViewerHeaderProps> = ({
             <Badge variant="secondary">Acquistato</Badge>
           )}
         </div>
-        <CardDescription className="flex items-center gap-2">
-          <Info className="h-4 w-4" />
-          Caricato il{" "}
-          {new Date(note.createdAt).toLocaleDateString("it-IT", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </CardDescription>
+        <div className="space-y-1">
+          <CardDescription className="flex items-center gap-2">
+            <User className="h-4 w-4" />
+            {note.isAnonymous
+              ? "Appunto anonimo"
+              : note.authorUsername || "Utente"}
+          </CardDescription>
+          <CardDescription className="flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            Caricato il{" "}
+            {new Date(note.createdAt).toLocaleDateString("it-IT", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </CardDescription>
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <PointsDisplay

@@ -1,0 +1,134 @@
+- .env
+- .eslintrc.json
+- .gitignore
+- app
+  - (authenticated)
+    - layout.tsx
+    - library
+      - page.tsx
+    - note
+      - [noteId]
+        - loading.tsx
+        - note-viewer.tsx
+        - page.tsx
+    - page.tsx
+    - points
+      - page.tsx
+    - upload
+      - page.tsx
+  - (public)
+    - layout.tsx
+    - privacy
+      - page.tsx
+    - terms
+      - page.tsx
+    - unauthorized
+      - page.tsx
+  - api
+    - v1
+      - notes
+        - route.ts
+        - upload
+          - route.ts
+        - [noteId]
+          - route.ts
+      - stats
+        - route.ts
+      - terms
+        - route.ts
+      - users
+        - leaderboard
+          - route.ts
+        - me
+          - library
+            - route.ts
+          - points
+            - history
+              - route.ts
+            - route.ts
+          - preferences
+            - route.ts
+  - favicon.ico
+  - globals.css
+  - layout.tsx
+- components
+  - auth-wrapper.tsx
+  - footer.tsx
+  - leaderboard.tsx
+  - loader.tsx
+  - navbar.tsx
+  - note-card.tsx
+  - notes
+    - file-list.tsx
+    - file-viewer
+      - image-viewer.tsx
+      - index.tsx
+      - office-viewer.tsx
+      - pdf-viewer.tsx
+    - note-tabs.tsx
+    - note-viewer-header.tsx
+    - purchase-dialog.tsx
+  - notes-filter.tsx
+  - optimized-image.tsx
+  - points-display.tsx
+  - terms-acceptance-status.tsx
+  - terms-of-service.tsx
+  - ui
+    - alert-dialog.tsx
+    - alert.tsx
+    - badge.tsx
+    - button.tsx
+    - card.tsx
+    - carousel.tsx
+    - checkbox.tsx
+    - command.tsx
+    - dialog.tsx
+    - dropdown-menu.tsx
+    - form.tsx
+    - icons.tsx
+    - input.tsx
+    - label.tsx
+    - navigation-menu.tsx
+    - pagination.tsx
+    - popover.tsx
+    - progress.tsx
+    - select.tsx
+    - separator.tsx
+    - sheet.tsx
+    - skeleton.tsx
+    - sonner.tsx
+    - switch.tsx
+    - table.tsx
+    - tabs.tsx
+    - tooltip.tsx
+  - upload-form.tsx
+  - user-button.tsx
+- components.json
+- hooks
+  - use-debounce.ts
+  - use-filters.ts
+  - use-media-query.ts
+- lib
+  - file-utils.ts
+  - points-utils.ts
+  - prisma.ts
+  - r2.ts
+  - utils.ts
+- middleware.ts
+- next-env.d.ts
+- next.config.mjs
+- package-lock.json
+- package.json
+- postcss.config.js
+- postcss.config.mjs
+- prisma
+  - schema.prisma
+- public
+  - logo.svg
+- README.md
+- stores
+  - points-store.ts
+- tailwind.config.ts
+- tsconfig.json
+- types
+  - notes.ts

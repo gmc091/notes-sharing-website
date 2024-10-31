@@ -11,6 +11,9 @@ import {
   ArrowUpRight,
   Search,
   SlidersHorizontal,
+  ListFilter,
+  Calendar,
+  TrendingUp,
 } from "lucide-react";
 import {
   Pagination,
@@ -37,10 +40,18 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useFilters } from "@/hooks/use-filters";
 import { Leaderboard } from "@/components/leaderboard";
 import LoadingSpinner from "@/components/loader";
+
+type SortOption = "recent" | "alpha" | "popular";
 
 export default function Home() {
   const {
@@ -63,6 +74,7 @@ export default function Home() {
   const [isPending, startTransition] = useTransition();
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [totalViews, setTotalViews] = useState(0);
+  const [sortBy, setSortBy] = useState<SortOption>("recent");
 
   // Calculate active filters
   const activeFiltersCount =
@@ -81,6 +93,7 @@ export default function Home() {
             `api/v1/notes?${new URLSearchParams({
               page: currentPage.toString(),
               limit: "6",
+              sort: sortBy,
               ...(searchQuery && { search: searchQuery }),
               ...(selectedSchools.length && {
                 schools: selectedSchools.join(","),
@@ -122,7 +135,21 @@ export default function Home() {
     selectedSchools,
     selectedSubjects,
     selectedYears,
+    sortBy,
   ]);
+
+  const getSortLabel = (sort: SortOption) => {
+    switch (sort) {
+      case "recent":
+        return "Data";
+      case "alpha":
+        return "Titolo";
+      case "popular":
+        return "Popolarità";
+      default:
+        return "Ordina per";
+    }
+  };
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gray-50">
@@ -249,6 +276,31 @@ export default function Home() {
                     className="pl-8"
                   />
                 </div>
+
+                {/* Sort Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="hidden sm:flex">
+                      <ListFilter className="mr-2 h-4 w-4" />
+                      Ordina per {getSortLabel(sortBy)}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-[150px]">
+                    <DropdownMenuItem onClick={() => setSortBy("recent")}>
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Data
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSortBy("alpha")}>
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      Titolo
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSortBy("popular")}>
+                      <TrendingUp className="mr-2 h-4 w-4" />
+                      Popolarità
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 {/* Mobile Filters Button */}
                 <Sheet
                   open={isMobileFiltersOpen}

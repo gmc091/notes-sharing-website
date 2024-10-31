@@ -11,6 +11,7 @@ generator client {
 model Note {
   id            Int           @id @default(autoincrement())
   title         String
+  description   String?       @db.Text
   schools       String[]
   subjects      String[]
   years         Int[]

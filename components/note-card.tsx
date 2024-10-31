@@ -1,5 +1,4 @@
-"use client";
-
+// components/note-card.tsx
 import React from "react";
 import Link from "next/link";
 import {
@@ -36,7 +35,6 @@ interface NoteCardProps {
 }
 
 const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
-  // Get file extensions for badge display
   const fileTypes = Array.from(
     new Set(
       note.files.map((file) => {
@@ -46,20 +44,17 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
     )
   );
 
-  // Format date in a locale-friendly way
   const formattedDate = new Date(note.createdAt).toLocaleDateString("it-IT", {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
 
-  // Format time
   const formattedTime = new Date(note.createdAt).toLocaleTimeString("it-IT", {
     hour: "2-digit",
     minute: "2-digit",
   });
 
-  // Determine if the user can access the note (either purchased or owner)
   const hasAccess = note.isPurchased || note.isAuthor;
 
   return (
@@ -69,7 +64,21 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
           <CardTitle className="text-lg font-semibold line-clamp-2 text-primary">
             {note.title}
           </CardTitle>
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center flex-wrap gap-2 text-xs">
+            <Tooltip>
+              <TooltipTrigger className="flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" />
+                <span className="text-muted-foreground">
+                  {note.isAnonymous
+                    ? "Anonimo"
+                    : note.authorUsername || "Utente"}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {note.isAnonymous ? "Appunto anonimo" : "Autore dell'appunto"}
+              </TooltipContent>
+            </Tooltip>
+            <Separator orientation="vertical" className="h-3" />
             <span className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" />
               <time dateTime={note.createdAt} className="text-muted-foreground">
@@ -85,6 +94,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
             </span>
           </div>
         </div>
+        <Separator />
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Tooltip>

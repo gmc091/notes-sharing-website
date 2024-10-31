@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ const querySchema = z.object({
   subjects: z.array(z.string()).optional(),
   years: z.array(z.string()).optional(),
   search: z.string().optional(),
-  sortBy: z.enum(["date", "purchases"]).default("date"),
+  sort: z.enum(["recent", "alpha", "popular"]).default("recent"),
 });
 
 export async function GET(request: Request) {
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     const subjects = searchParams.getAll("subjects");
     const years = searchParams.getAll("years");
     const search = searchParams.get("search") || "";
-    const sortBy = searchParams.get("sortBy") || "date";
+    const sort = searchParams.get("sort") || "recent";
 
     const { page, limit } = querySchema.parse({
       page: searchParams.get("page"),
@@ -35,6 +35,7 @@ export async function GET(request: Request) {
       subjects,
       years,
       search,
+      sort,
     });
 
     const skip = (page - 1) * limit;
@@ -76,10 +77,19 @@ export async function GET(request: Request) {
     const where: Prisma.NoteWhereInput =
       whereConditions.length > 0 ? { AND: whereConditions } : {};
 
-    const orderBy =
-      sortBy === "purchases"
-        ? { purchaseCount: "desc" as const }
-        : { createdAt: "desc" as const };
+    // Define sorting based on the sort parameter
+    let orderBy: Prisma.NoteOrderByWithRelationInput;
+    switch (sort) {
+      case "alpha":
+        orderBy = { title: "asc" };
+        break;
+      case "popular":
+        orderBy = { purchaseCount: "desc" };
+        break;
+      case "recent":
+      default:
+        orderBy = { createdAt: "desc" };
+    }
 
     const [notes, totalCount] = await Promise.all([
       prisma.note.findMany({
@@ -98,6 +108,11 @@ export async function GET(request: Request) {
           purchaseCount: true,
           userId: true,
           isAnonymous: true,
+          user: {
+            select: {
+              clerkId: true,
+            },
+          },
           purchases: userId
             ? {
                 where: {
@@ -114,23 +129,40 @@ export async function GET(request: Request) {
     ]);
 
     // Transform the data to match the expected format
-    const notesWithFiles = notes.map((note) => {
-      // Only destructure what we need to remove from the final object
-      const { filePaths, userId: noteUserId } = note;
+    const notesWithFiles = await Promise.all(
+      notes.map(async (note) => {
+        // Only destructure what we need to remove from the final object
+        const { filePaths, userId: noteUserId, user } = note;
 
-      return {
-        ...note,
-        files: filePaths.map((path) => ({
-          key: path,
-          name: path.split("/").pop() || path,
-        })),
-        filePaths: undefined, // Remove filePaths from response
-        isPurchased: Boolean(note.purchases?.length),
-        isAuthor: userId === noteUserId,
-        userId: undefined, // Remove raw userId from response
-        purchases: undefined, // Remove purchases from response
-      };
-    });
+        // Get user data from Clerk if not anonymous
+        let authorUsername = null;
+        if (!note.isAnonymous && user?.clerkId) {
+          try {
+            const clerkUser = await clerkClient.users.getUser(user.clerkId);
+            authorUsername =
+              clerkUser.username ||
+              `${clerkUser.firstName} ${clerkUser.lastName}`.trim();
+          } catch (error) {
+            console.error("Error fetching user data:", error);
+          }
+        }
+
+        return {
+          ...note,
+          files: filePaths.map((path) => ({
+            key: path,
+            name: path.split("/").pop() || path,
+          })),
+          authorUsername,
+          filePaths: undefined,
+          isPurchased: Boolean(note.purchases?.length),
+          isAuthor: userId === noteUserId,
+          userId: undefined,
+          user: undefined,
+          purchases: undefined,
+        };
+      })
+    );
 
     return NextResponse.json({
       notes: notesWithFiles,
