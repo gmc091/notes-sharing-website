@@ -1,3 +1,4 @@
+// components/upload-form.tsx
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
@@ -10,7 +11,6 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Loader2,
-  X,
   File as FileIcon,
   Upload,
   CheckCircle2,
@@ -21,6 +21,7 @@ import {
   Check,
   ChevronsUpDown,
   Info,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -41,14 +42,28 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { Badge } from "./ui/badge";
-import { Label } from "./ui/label";
-import { Switch } from "./ui/switch";
-import { Textarea } from "./ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import type { Note } from "@/types/notes";
 
-// Constants and types
+// Constants
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const MAX_TOTAL_FILES = 10;
+const MAX_TOTAL_SIZE = 500 * 1024 * 1024; // 500MB
 const UPLOAD_TIMEOUT = 30000; // 30 seconds
 const MAX_DESCRIPTION_LENGTH = 500;
 
@@ -115,7 +130,7 @@ const schoolTypes = [
       "Inglese",
     ],
   },
-] as const;
+];
 
 const years = [
   { label: "Primo anno", value: "1" },
@@ -125,12 +140,28 @@ const years = [
   { label: "Quinto anno", value: "5" },
 ];
 
-interface FileWithPreview extends File {
+// Types
+interface ExistingFile {
+  key: string;
+  name: string;
+  size?: number;
+  lastModified?: Date;
+  url?: string;
+  existingFile: true;
+  uploadStatus: "completed";
   preview?: string;
-  uploadProgress?: number;
-  uploadStatus?: "pending" | "uploading" | "completed" | "error";
-  error?: string;
+  type: string;
 }
+
+type FileWithPreview =
+  | (File & {
+      preview?: string;
+      uploadProgress?: number;
+      uploadStatus?: "pending" | "uploading" | "completed" | "error";
+      error?: string;
+      existingFile?: false;
+    })
+  | ExistingFile;
 
 interface ComboboxSelectProps {
   items: Array<{ label: string; value: string } | string>;
@@ -141,12 +172,32 @@ interface ComboboxSelectProps {
   disabled?: boolean;
   multiple?: boolean;
   error?: string;
-  allowDeselect?: boolean; // Add this prop
+  allowDeselect?: boolean;
 }
 
-interface UploadError extends Error {
-  details?: Array<{ message: string }>;
+interface UploadFormProps {
+  mode: "create" | "edit";
+  initialData?: Note;
+  submitButtonText?: string;
+  loadingText?: string;
 }
+
+// Type guards
+const isExistingFile = (file: FileWithPreview): file is ExistingFile => {
+  return "existingFile" in file && file.existingFile === true;
+};
+
+const isNewFile = (
+  file: FileWithPreview
+): file is File & {
+  preview?: string;
+  uploadProgress?: number;
+  uploadStatus?: "pending" | "uploading" | "completed" | "error";
+  error?: string;
+  existingFile?: false;
+} => {
+  return !("existingFile" in file) || file.existingFile === false;
+};
 
 // Utility functions
 const formatFileSize = (bytes: number): string => {
@@ -158,34 +209,219 @@ const formatFileSize = (bytes: number): string => {
 };
 
 const getFileIcon = (file: FileWithPreview) => {
-  const type = file.type || "";
+  const type = isExistingFile(file) ? file.type : file.type || "";
   if (type.includes("image")) return ImageIcon;
   if (type.includes("pdf")) return FilePdf;
   if (type.includes("document") || type.includes("msword")) return FileText;
   return FileIcon;
 };
 
-// Component implementation
-const UploadForm = () => {
+const getTotalSize = (files: FileWithPreview[]): number => {
+  return files.reduce((total, file) => {
+    if (isNewFile(file)) {
+      return total + file.size;
+    }
+    return total + (file.size || 0);
+  }, 0);
+};
+
+const handleApiError = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "An unknown error occurred";
+};
+
+const validateFile = (
+  file: File,
+  existingFiles: FileWithPreview[]
+): { valid: boolean; error?: string } => {
+  if (file.size > MAX_FILE_SIZE) {
+    return {
+      valid: false,
+      error: `Il file ${file.name} supera il limite di ${formatFileSize(
+        MAX_FILE_SIZE
+      )}`,
+    };
+  }
+
+  const fileType = Object.entries(ACCEPTED_FILE_TYPES).find(([type]) =>
+    file.type.includes(type)
+  );
+  if (!fileType) {
+    return {
+      valid: false,
+      error: `Il formato del file ${file.name} non è supportato`,
+    };
+  }
+
+  const isDuplicate = existingFiles.some(
+    (existingFile) => existingFile.name === file.name
+  );
+  if (isDuplicate) {
+    return {
+      valid: false,
+      error: `Il file ${file.name} è già stato aggiunto`,
+    };
+  }
+
+  const newTotalSize = getTotalSize(existingFiles) + file.size;
+  if (newTotalSize > MAX_TOTAL_SIZE) {
+    return {
+      valid: false,
+      error: `La dimensione totale dei file non può superare ${formatFileSize(
+        MAX_TOTAL_SIZE
+      )}`,
+    };
+  }
+
+  return { valid: true };
+};
+
+// ComboboxSelect Component
+const ComboboxSelect: React.FC<ComboboxSelectProps> = ({
+  items,
+  selectedValues,
+  onChange,
+  placeholder,
+  label,
+  disabled = false,
+  multiple = false,
+  error,
+  allowDeselect = true,
+}) => {
+  return (
+    <div className="flex flex-col space-y-2">
+      <label className="text-sm font-medium text-gray-900">{label}</label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            disabled={disabled}
+            className={cn(
+              "w-full justify-between",
+              !selectedValues.length && "text-muted-foreground",
+              error && "border-red-500"
+            )}
+          >
+            <div className="flex flex-wrap items-center gap-1 py-1">
+              {selectedValues.length === 0 && placeholder}
+              {selectedValues.map((value) => {
+                const item = items.find((item) =>
+                  typeof item === "string"
+                    ? item === value
+                    : item.value === value
+                );
+                return (
+                  <Badge key={value} variant="secondary" className="mr-1">
+                    {typeof item === "string" ? item : item?.label || value}
+                  </Badge>
+                );
+              })}
+            </div>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-0">
+          <Command>
+            <CommandInput placeholder={`Cerca ${label.toLowerCase()}...`} />
+            <CommandList>
+              <CommandEmpty>Nessun risultato trovato.</CommandEmpty>
+              <CommandGroup>
+                {items.map((item) => {
+                  const itemValue =
+                    typeof item === "string" ? item : item.value;
+                  const itemLabel =
+                    typeof item === "string" ? item : item.label;
+                  const isSelected = selectedValues.includes(itemValue);
+
+                  return (
+                    <CommandItem
+                      key={itemValue}
+                      onSelect={() => {
+                        if (isSelected && !allowDeselect) {
+                          return;
+                        }
+                        if (multiple) {
+                          onChange(
+                            isSelected
+                              ? selectedValues.filter((v) => v !== itemValue)
+                              : [...selectedValues, itemValue]
+                          );
+                        } else {
+                          onChange([itemValue]);
+                        }
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          isSelected ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {itemLabel}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {error && <p className="text-sm text-red-500">{error}</p>}
+    </div>
+  );
+};
+
+// Main Component
+const UploadForm: React.FC<UploadFormProps> = ({
+  mode = "create",
+  initialData,
+  submitButtonText = mode === "create" ? "Carica appunti" : "Salva modifiche",
+  loadingText = mode === "create"
+    ? "Caricamento in corso..."
+    : "Salvataggio in corso...",
+}) => {
   // State management
-  const [title, setTitle] = useState("");
-  const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
-  const [selectedYears, setSelectedYears] = useState<string[]>([]);
-  const [files, setFiles] = useState<FileWithPreview[]>([]);
+  const [title, setTitle] = useState(initialData?.title || "");
+  const [selectedSchools, setSelectedSchools] = useState<string[]>(
+    initialData?.schools || []
+  );
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
+    initialData?.subjects || []
+  );
+  const [selectedYears, setSelectedYears] = useState<string[]>(
+    initialData?.years.map(String) || []
+  );
+  const [description, setDescription] = useState(
+    initialData?.description || ""
+  );
+  const [isAnonymous, setIsAnonymous] = useState(
+    initialData?.isAnonymous || false
+  );
+  const [files, setFiles] = useState<FileWithPreview[]>(
+    initialData?.files.map((file) => ({
+      ...file,
+      existingFile: true as const,
+      uploadStatus: "completed" as const,
+      type:
+        file.name.split(".").pop()?.toLowerCase() || "application/octet-stream",
+    })) || []
+  );
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isUploading, setIsUploading] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState(false);
-  const [isAnonymous, setIsAnonymous] = useState(false);
-  const [description, setDescription] = useState("");
-  const [descriptionError, setDescriptionError] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<FileWithPreview | null>(
+    null
+  );
 
   const uploadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllersRef = useRef<AbortController[]>([]);
   const router = useRouter();
 
-  // Cleanup function for aborted uploads
+  // Cleanup functions
   const cleanupUploads = useCallback(() => {
     if (uploadTimeoutRef.current) {
       clearTimeout(uploadTimeoutRef.current);
@@ -194,24 +430,8 @@ const UploadForm = () => {
     abortControllersRef.current = [];
   }, []);
 
-  const handleDescriptionChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>
-  ) => {
-    const newDescription = e.target.value;
-    setDescription(newDescription);
-
-    if (newDescription.length > MAX_DESCRIPTION_LENGTH) {
-      setDescriptionError(
-        `La descrizione non può superare ${MAX_DESCRIPTION_LENGTH} caratteri`
-      );
-    } else {
-      setDescriptionError(null);
-    }
-  };
-
-  // Cleanup function for file previews
   const cleanupFilePreview = useCallback((file: FileWithPreview) => {
-    if (file.preview) {
+    if (!isExistingFile(file) && file.preview) {
       URL.revokeObjectURL(file.preview);
     }
   }, []);
@@ -248,71 +468,7 @@ const UploadForm = () => {
     };
   }, [files, cleanupUploads, cleanupFilePreview]);
 
-  // File drop handler
-  const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      if (isUploading || formSubmitted) return;
-
-      const processedFiles = acceptedFiles
-        .map((file) => {
-          try {
-            if (file.size > MAX_FILE_SIZE) {
-              setError(`Il file ${file.name} supera il limite di 100MB`);
-              return null;
-            }
-
-            const isDuplicate = files.some(
-              (existingFile) => existingFile.name === file.name
-            );
-            if (isDuplicate) {
-              setError(`Il file ${file.name} è già stato aggiunto`);
-              return null;
-            }
-
-            const preview = file.type.startsWith("image/")
-              ? URL.createObjectURL(file)
-              : undefined;
-
-            return Object.assign(file, {
-              preview,
-              uploadProgress: 0,
-              uploadStatus: "pending" as const,
-            });
-          } catch (error) {
-            console.error("Error processing file:", error);
-            setError(`Errore nel processare il file ${file.name}`);
-            return null;
-          }
-        })
-        .filter(Boolean) as FileWithPreview[];
-
-      if (processedFiles.length > 0) {
-        setFiles((prev) => [...prev, ...processedFiles]);
-        setError(null);
-      }
-    },
-    [files, isUploading, formSubmitted]
-  );
-
-  // Dropzone configuration
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: ACCEPTED_FILE_TYPES,
-    maxSize: MAX_FILE_SIZE,
-    multiple: true,
-    disabled: isUploading || formSubmitted,
-    onError: (err) => {
-      setError(err.message);
-    },
-    onDropRejected: (rejections) => {
-      const errors = rejections.map(
-        (rejection) => `${rejection.file.name}: ${rejection.errors[0]?.message}`
-      );
-      setError(errors.join(", "));
-    },
-  });
-
-  // Upload function
+  // File upload function
   const uploadToR2 = async (
     file: File,
     presignedUrl: string,
@@ -336,21 +492,21 @@ const UploadForm = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
         } else {
-          reject(new Error(`Caricamento fallito (${xhr.status})`));
+          reject(new Error(`Upload failed (${xhr.status})`));
         }
       });
 
       xhr.addEventListener("error", () => {
         console.error("XHR Error:", xhr.statusText);
-        reject(new Error("Errore durante il caricamento"));
+        reject(new Error("Error during upload"));
       });
 
       xhr.addEventListener("timeout", () => {
-        reject(new Error("Timeout durante il caricamento"));
+        reject(new Error("Upload timeout"));
       });
 
       xhr.addEventListener("abort", () => {
-        reject(new Error("Caricamento annullato"));
+        reject(new Error("Upload cancelled"));
       });
 
       xhr.withCredentials = false;
@@ -366,7 +522,7 @@ const UploadForm = () => {
 
       uploadTimeoutRef.current = setTimeout(() => {
         xhr.abort();
-        reject(new Error("Timeout durante il caricamento"));
+        reject(new Error("Upload timeout"));
       }, UPLOAD_TIMEOUT);
     }).finally(() => {
       if (uploadTimeoutRef.current) {
@@ -379,104 +535,96 @@ const UploadForm = () => {
     });
   };
 
-  // Combobox Select Component
-  const ComboboxSelect: React.FC<ComboboxSelectProps> = ({
-    items,
-    selectedValues,
-    onChange,
-    placeholder,
-    label,
-    disabled = false,
-    multiple = false,
-    error,
-    allowDeselect = true, // Default to true to maintain backward compatibility
-  }) => {
-    return (
-      <div className="flex flex-col space-y-2">
-        <label className="text-sm font-medium text-gray-900">{label}</label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              disabled={disabled}
-              className={cn(
-                "w-full justify-between",
-                !selectedValues.length && "text-muted-foreground",
-                error && "border-red-500"
-              )}
-            >
-              <div className="flex flex-wrap items-center gap-1 py-1">
-                {selectedValues.length === 0 && placeholder}
-                {selectedValues.map((value) => {
-                  const displayValue = items.find((item) =>
-                    typeof item === "string"
-                      ? item === value
-                      : item.value === value
-                  );
-                  return (
-                    <Badge key={value} variant="secondary" className="mr-1">
-                      {typeof displayValue === "string"
-                        ? displayValue
-                        : displayValue?.label || value}
-                    </Badge>
-                  );
-                })}
-              </div>
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-full p-0">
-            <Command>
-              <CommandInput placeholder={`Cerca ${label.toLowerCase()}...`} />
-              <CommandList>
-                <CommandEmpty>Nessun risultato trovato.</CommandEmpty>
-                <CommandGroup>
-                  {items.map((item) => {
-                    const itemValue =
-                      typeof item === "string" ? item : item.value;
-                    const itemLabel =
-                      typeof item === "string" ? item : item.label;
-                    const isSelected = selectedValues.includes(itemValue);
-
-                    return (
-                      <CommandItem
-                        key={itemValue}
-                        onSelect={() => {
-                          if (isSelected && !allowDeselect) {
-                            // Don't allow deselection if allowDeselect is false
-                            return;
-                          }
-                          if (multiple) {
-                            onChange(
-                              isSelected
-                                ? selectedValues.filter((v) => v !== itemValue)
-                                : [...selectedValues, itemValue]
-                            );
-                          } else {
-                            onChange([itemValue]);
-                          }
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            isSelected ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {itemLabel}
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-        {error && <p className="text-sm text-red-500">{error}</p>}
-      </div>
-    );
+  // File deletion handlers
+  const handleDeleteFile = async (file: FileWithPreview) => {
+    setFileToDelete(file);
+    setDeleteConfirmOpen(true);
   };
+
+  const confirmDeleteFile = async () => {
+    if (!fileToDelete) return;
+
+    if (isExistingFile(fileToDelete) && mode === "edit") {
+      try {
+        const response = await fetch(`/api/v1/notes/${initialData?.id}/files`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filePath: fileToDelete.key }),
+        });
+
+        if (!response.ok) throw new Error("Failed to delete file");
+
+        toast.success("File eliminato con successo");
+      } catch (err) {
+        const errorMessage = handleApiError(err);
+        console.error("Delete error:", err);
+        toast.error(errorMessage);
+        setDeleteConfirmOpen(false);
+        return;
+      }
+    }
+
+    cleanupFilePreview(fileToDelete);
+    setFiles((files) => files.filter((f) => f !== fileToDelete));
+    setDeleteConfirmOpen(false);
+    setFileToDelete(null);
+  };
+
+  // Dropzone configuration
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: useCallback(
+      (acceptedFiles: File[]) => {
+        if (isUploading || formSubmitted) return;
+
+        const totalFiles = files.length + acceptedFiles.length;
+        if (totalFiles > MAX_TOTAL_FILES) {
+          setError(`Non puoi caricare più di ${MAX_TOTAL_FILES} file`);
+          return;
+        }
+
+        const processedFiles = acceptedFiles
+          .map((file) => {
+            const validation = validateFile(file, files);
+            if (!validation.valid) {
+              setError(validation.error || "Invalid file");
+              return null;
+            }
+
+            const preview = file.type.startsWith("image/")
+              ? URL.createObjectURL(file)
+              : undefined;
+
+            return Object.assign(file, {
+              preview,
+              uploadProgress: 0,
+              uploadStatus: "pending" as const,
+              existingFile: false as const,
+            });
+          })
+          .filter(Boolean) as FileWithPreview[];
+
+        if (processedFiles.length > 0) {
+          setFiles((prev) => [...prev, ...processedFiles]);
+          setError(null);
+        }
+      },
+      [files, isUploading, formSubmitted]
+    ),
+    accept: ACCEPTED_FILE_TYPES,
+    maxSize: MAX_FILE_SIZE,
+    multiple: true,
+    disabled: isUploading || formSubmitted || files.length >= MAX_TOTAL_FILES,
+    onError: (err: Error) => {
+      console.error("Dropzone error:", err);
+      setError(err.message);
+    },
+    onDropRejected: (rejections) => {
+      const errors = rejections.map(
+        (rejection) => `${rejection.file.name}: ${rejection.errors[0]?.message}`
+      );
+      setError(errors.join(", "));
+    },
+  });
 
   // Form submission handler
   const handleSubmit = async (e: React.FormEvent) => {
@@ -503,6 +651,9 @@ const UploadForm = () => {
     if (files.length === 0) {
       newFieldErrors.files = "Carica almeno un file";
     }
+    if (description.length > MAX_DESCRIPTION_LENGTH) {
+      newFieldErrors.description = `La descrizione non può superare ${MAX_DESCRIPTION_LENGTH} caratteri`;
+    }
 
     if (Object.keys(newFieldErrors).length > 0) {
       setFieldErrors(newFieldErrors);
@@ -514,22 +665,38 @@ const UploadForm = () => {
     setFormSubmitted(true);
 
     try {
-      const filesData = files.map((file) => ({
+      // Separate existing and new files
+      const existingFiles = files.filter(isExistingFile);
+      const newFiles = files.filter(isNewFile);
+
+      // Prepare files data for API
+      const filesData = newFiles.map((file) => ({
         name: file.name,
         type: file.type,
         size: file.size,
       }));
 
-      const response = await fetch("/api/v1/notes/upload", {
-        method: "POST",
+      // Determine API endpoint and method
+      const endpoint =
+        mode === "create"
+          ? "/api/v1/notes/upload"
+          : `/api/v1/notes/${initialData?.id}`;
+
+      const method = mode === "create" ? "POST" : "PATCH";
+
+      // Make initial API call
+      const response = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
+          description: description.trim() || undefined,
           schools: selectedSchools,
           subjects: selectedSubjects,
           years: selectedYears,
           files: filesData,
           isAnonymous,
+          existingFiles: existingFiles.map((f) => f.key),
         }),
       });
 
@@ -538,85 +705,95 @@ const UploadForm = () => {
         throw new Error(
           errorData.details?.[0]?.message ||
             errorData.error ||
-            "Caricamento fallito"
+            "Operation failed"
         );
       }
 
       const { noteId, presignedUrls } = await response.json();
 
-      await Promise.all(
-        files.map(async (file, index) => {
-          setFiles((prev) =>
-            prev.map((f, i) =>
-              i === index ? { ...f, uploadStatus: "uploading" } : f
-            )
-          );
-
-          try {
-            await uploadToR2(
-              file,
-              presignedUrls[index].url,
-              index,
-              (progress) => {
-                setFiles((prev) =>
-                  prev.map((f, i) =>
-                    i === index ? { ...f, uploadProgress: progress } : f
-                  )
-                );
-              }
-            );
-
+      // Upload new files if any
+      if (newFiles.length > 0) {
+        await Promise.all(
+          newFiles.map(async (file, index) => {
             setFiles((prev) =>
-              prev.map((f, i) =>
-                i === index
-                  ? { ...f, uploadProgress: 100, uploadStatus: "completed" }
-                  : f
+              prev.map((f) =>
+                f === file ? { ...f, uploadStatus: "uploading" } : f
               )
             );
-          } catch (error) {
-            setFiles((prev) =>
-              prev.map((f, i) =>
-                i === index
-                  ? {
-                      ...f,
-                      uploadStatus: "error",
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : "Errore sconosciuto",
-                    }
-                  : f
-              )
-            );
-            throw error;
-          }
-        })
+
+            try {
+              await uploadToR2(
+                file,
+                presignedUrls[index].url,
+                index,
+                (progress) => {
+                  setFiles((prev) =>
+                    prev.map((f) =>
+                      f === file ? { ...f, uploadProgress: progress } : f
+                    )
+                  );
+                }
+              );
+
+              setFiles((prev) =>
+                prev.map((f) =>
+                  f === file
+                    ? { ...f, uploadProgress: 100, uploadStatus: "completed" }
+                    : f
+                )
+              );
+            } catch (error) {
+              setFiles((prev) =>
+                prev.map((f) =>
+                  f === file
+                    ? {
+                        ...f,
+                        uploadStatus: "error",
+                        error: handleApiError(error),
+                      }
+                    : f
+                )
+              );
+              throw error;
+            }
+          })
+        );
+      }
+
+      // Clean up and redirect
+      files.filter(isNewFile).forEach(cleanupFilePreview);
+
+      toast.success(
+        mode === "create"
+          ? "Appunto caricato con successo"
+          : "Appunto aggiornato con successo"
       );
 
-      // Clean up file previews before navigation
-      files.forEach(cleanupFilePreview);
-      router.push(`/note/${noteId}`);
+      router.push(`/note/${noteId || initialData?.id}`);
     } catch (error) {
-      const uploadError = error as UploadError;
-      setError(uploadError.message);
-      setFormSubmitted(false); // Allow retrying if upload fails
+      console.error("Operation failed:", error);
+      setError(handleApiError(error));
+      setFormSubmitted(false);
       setFiles((prev) =>
         prev.map((f) =>
           f.uploadStatus === "uploading" ? { ...f, uploadStatus: "error" } : f
         )
       );
+
+      toast.error(handleApiError(error));
     } finally {
       setIsUploading(false);
     }
   };
 
-  // JSX Return
+  // Component render
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Title Field */}
       <div className="space-y-2">
-        <label htmlFor="title" className="text-sm font-medium text-gray-900">
+        <Label htmlFor="title" className="text-sm font-medium text-gray-900">
           Titolo
-        </label>
+        </Label>
         <Input
           id="title"
           type="text"
@@ -631,6 +808,7 @@ const UploadForm = () => {
           )}
           aria-invalid={Boolean(fieldErrors.title)}
           aria-errormessage={fieldErrors.title ? "title-error" : undefined}
+          disabled={isUploading || formSubmitted}
         />
         {fieldErrors.title && (
           <p id="title-error" className="text-sm text-red-500">
@@ -639,22 +817,38 @@ const UploadForm = () => {
         )}
       </div>
 
+      {/* Description Field */}
       <div className="space-y-2">
-        <label
+        <Label
           htmlFor="description"
           className="text-sm font-medium text-gray-900"
         >
           Descrizione
-        </label>
+        </Label>
         <Textarea
           id="description"
           placeholder="Aggiungi una breve descrizione dei tuoi appunti..."
           value={description}
-          onChange={handleDescriptionChange}
+          onChange={(e) => {
+            setDescription(e.target.value);
+            if (e.target.value.length > MAX_DESCRIPTION_LENGTH) {
+              setFieldErrors((prev) => ({
+                ...prev,
+                description: `La descrizione non può superare ${MAX_DESCRIPTION_LENGTH} caratteri`,
+              }));
+            } else {
+              setFieldErrors((prev) => {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { description: _, ...rest } = prev;
+                return rest;
+              });
+            }
+          }}
           className={cn(
             "resize-none min-h-[100px]",
-            descriptionError && "border-red-500"
+            fieldErrors.description && "border-red-500"
           )}
+          disabled={isUploading || formSubmitted}
         />
         <div className="flex justify-between items-center text-xs">
           <span
@@ -665,8 +859,8 @@ const UploadForm = () => {
           >
             {description.length}/{MAX_DESCRIPTION_LENGTH} caratteri
           </span>
-          {descriptionError && (
-            <span className="text-red-500">{descriptionError}</span>
+          {fieldErrors.description && (
+            <span className="text-red-500">{fieldErrors.description}</span>
           )}
         </div>
         <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -675,6 +869,7 @@ const UploadForm = () => {
         </p>
       </div>
 
+      {/* Selection Fields */}
       <div className="grid gap-6 md:grid-cols-2">
         <ComboboxSelect
           items={schoolTypes.map((school) => school.name)}
@@ -685,6 +880,7 @@ const UploadForm = () => {
           multiple={true}
           error={fieldErrors.schools}
           allowDeselect={false}
+          disabled={isUploading || formSubmitted}
         />
 
         <ComboboxSelect
@@ -693,7 +889,9 @@ const UploadForm = () => {
           onChange={setSelectedSubjects}
           placeholder="Seleziona materia"
           label="Materia"
-          disabled={selectedSchools.length === 0}
+          disabled={
+            selectedSchools.length === 0 || isUploading || formSubmitted
+          }
           multiple={true}
           error={fieldErrors.subjects}
           allowDeselect={false}
@@ -708,9 +906,11 @@ const UploadForm = () => {
           multiple={true}
           error={fieldErrors.years}
           allowDeselect={false}
+          disabled={isUploading || formSubmitted}
         />
       </div>
 
+      {/* Anonymous Switch */}
       <div className="flex items-center justify-between space-x-2">
         <Label htmlFor="anonymous" className="flex flex-col space-y-1">
           <span>Carica in modo anonimo</span>
@@ -722,11 +922,14 @@ const UploadForm = () => {
           id="anonymous"
           checked={isAnonymous}
           onCheckedChange={setIsAnonymous}
+          disabled={isUploading || formSubmitted}
         />
       </div>
 
+      {/* File Upload Section */}
       <Card className="border shadow-sm bg-gradient-to-b from-white to-gray-50/50">
         <CardContent className="p-6">
+          {/* Dropzone */}
           <div
             {...getRootProps()}
             className={cn(
@@ -771,6 +974,7 @@ const UploadForm = () => {
             </div>
           </div>
 
+          {/* Error Display */}
           {error && (
             <div className="mt-4">
               <Alert
@@ -783,6 +987,7 @@ const UploadForm = () => {
             </div>
           )}
 
+          {/* File List */}
           {files.length > 0 && (
             <div className="mt-6 space-y-3">
               {files.map((file, index) => (
@@ -804,6 +1009,7 @@ const UploadForm = () => {
                             alt={file.name}
                             fill
                             className="object-cover"
+                            unoptimized
                           />
                         </div>
                       ) : (
@@ -832,7 +1038,11 @@ const UploadForm = () => {
                           </Tooltip>
                           {!isUploading && !formSubmitted && (
                             <p className="text-xs text-muted-foreground">
-                              {formatFileSize(file.size)}
+                              {isExistingFile(file)
+                                ? file.size
+                                  ? formatFileSize(file.size)
+                                  : "Unknown size"
+                                : formatFileSize(file.size)}
                             </p>
                           )}
                         </div>
@@ -842,12 +1052,6 @@ const UploadForm = () => {
                             value={file.uploadProgress}
                             className="h-1 mt-2"
                           />
-                        )}
-
-                        {file.error && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {file.error}
-                          </p>
                         )}
                       </div>
 
@@ -871,17 +1075,11 @@ const UploadForm = () => {
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              cleanupFilePreview(file);
-                              setFiles(files.filter((_, i) => i !== index));
-                              if (files.length === 1) {
-                                setError(null);
-                              }
-                            }}
-                            className="h-8 w-8 p-0 hover:bg-gray-100 transition-colors"
+                            onClick={() => handleDeleteFile(file)}
+                            className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
                             aria-label={`Rimuovi ${file.name}`}
                           >
-                            <X className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
@@ -894,45 +1092,83 @@ const UploadForm = () => {
         </CardContent>
       </Card>
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare questo file?
+              {mode === "edit" &&
+                isExistingFile(fileToDelete!) &&
+                " Il file verrà eliminato permanentemente dal server."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteFile}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Form Actions */}
       <div className="space-y-4">
         {fieldErrors.files && (
           <p className="text-sm text-red-500">{fieldErrors.files}</p>
         )}
 
-        <Button
-          type="submit"
-          className={cn(
-            "w-full transition-all duration-200",
-            isUploading && "cursor-not-allowed"
+        <div className="flex gap-4 justify-end">
+          {mode === "edit" && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+              disabled={isUploading || formSubmitted}
+            >
+              Annulla
+            </Button>
           )}
-          disabled={
-            !files.length ||
-            !title.trim() ||
-            !selectedSchools.length ||
-            !selectedSubjects.length ||
-            !selectedYears.length ||
-            isUploading ||
-            formSubmitted
-          }
-        >
-          {isUploading ? (
-            <div className="flex items-center">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              <span>Caricamento in corso...</span>
-            </div>
-          ) : formSubmitted ? (
-            <div className="flex items-center">
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              <span>Caricamento completato</span>
-            </div>
-          ) : (
-            "Carica appunti"
-          )}
-        </Button>
+          <Button
+            type="submit"
+            className={cn(
+              "min-w-[200px] transition-all duration-200",
+              isUploading && "cursor-not-allowed"
+            )}
+            disabled={
+              !files.length ||
+              !title.trim() ||
+              !selectedSchools.length ||
+              !selectedSubjects.length ||
+              !selectedYears.length ||
+              isUploading ||
+              formSubmitted ||
+              Object.keys(fieldErrors).length > 0
+            }
+          >
+            {isUploading ? (
+              <div className="flex items-center">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <span>{loadingText}</span>
+              </div>
+            ) : formSubmitted ? (
+              <div className="flex items-center">
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                <span>Completato</span>
+              </div>
+            ) : (
+              submitButtonText
+            )}
+          </Button>
+        </div>
 
         {isUploading && (
           <p className="text-sm text-center text-muted-foreground">
-            Non chiudere questa pagina durante il caricamento
+            Non chiudere questa pagina durante l&apos;operazione
           </p>
         )}
       </div>

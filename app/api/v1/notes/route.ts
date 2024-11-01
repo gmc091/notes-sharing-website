@@ -1,3 +1,4 @@
+// app/api/v1/notes/route.ts
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -21,7 +22,6 @@ export async function GET(request: Request) {
     const { userId } = auth();
     const { searchParams } = new URL(request.url);
 
-    // Handle multiple values for schools, subjects, and years
     const schools = searchParams.getAll("schools");
     const subjects = searchParams.getAll("subjects");
     const years = searchParams.getAll("years");
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 
     const skip = (page - 1) * limit;
 
-    // Build the where clause based on filters and search
+    // Build where clause
     const whereConditions: Prisma.NoteWhereInput[] = [];
 
     if (schools.length > 0) {
@@ -55,12 +55,17 @@ export async function GET(request: Request) {
       whereConditions.push({ years: { hasSome: years.map(Number) } });
     }
 
-    // Only add search condition if search is not empty
     if (search.trim()) {
       whereConditions.push({
         OR: [
           {
             title: {
+              contains: search,
+              mode: "insensitive" as Prisma.QueryMode,
+            },
+          },
+          {
+            description: {
               contains: search,
               mode: "insensitive" as Prisma.QueryMode,
             },
@@ -77,7 +82,7 @@ export async function GET(request: Request) {
     const where: Prisma.NoteWhereInput =
       whereConditions.length > 0 ? { AND: whereConditions } : {};
 
-    // Define sorting based on the sort parameter
+    // Define sorting
     let orderBy: Prisma.NoteOrderByWithRelationInput;
     switch (sort) {
       case "alpha":
@@ -100,6 +105,7 @@ export async function GET(request: Request) {
         select: {
           id: true,
           title: true,
+          description: true, // Added description field
           filePaths: true,
           createdAt: true,
           schools: true,
@@ -128,13 +134,11 @@ export async function GET(request: Request) {
       prisma.note.count({ where }),
     ]);
 
-    // Transform the data to match the expected format
+    // Transform data
     const notesWithFiles = await Promise.all(
       notes.map(async (note) => {
-        // Only destructure what we need to remove from the final object
         const { filePaths, userId: noteUserId, user } = note;
 
-        // Get user data from Clerk if not anonymous
         let authorUsername = null;
         if (!note.isAnonymous && user?.clerkId) {
           try {
@@ -185,7 +189,5 @@ export async function GET(request: Request) {
       { error: "An error occurred while fetching notes" },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

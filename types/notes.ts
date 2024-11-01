@@ -16,6 +16,7 @@ export interface ViewerFile {
 export interface Note {
   id: number;
   title: string;
+  description: string | null | undefined;
   files: NoteFile[];
   createdAt: string;
   schools: string[];
@@ -25,8 +26,8 @@ export interface Note {
   isAuthor?: boolean;
   isPurchased?: boolean;
   userId?: string;
-  isAnonymous: boolean; // Added this property
-  authorUsername?: string | null; // Added this property
+  isAnonymous: boolean;
+  authorUsername?: string | null;
 }
 
 export interface NotesApiResponse {

@@ -56,7 +56,7 @@ const LeaderboardItem = memo(
           <span className="text-sm font-medium truncate">
             {username}
             {isCurrentUser && (
-              <Badge variant="secondary" className="ml-2 text-[10px]">
+              <Badge variant="default" className="ml-2 text-[10px]">
                 Tu
               </Badge>
             )}

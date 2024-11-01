@@ -4,6 +4,7 @@ import {
   S3Client,
   GetObjectCommand,
   ListObjectsV2Command,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -76,6 +77,46 @@ export async function generateSignedUrl(filePath: string): Promise<string> {
   } catch (error) {
     console.error(`Error generating signed URL for ${filePath}:`, error);
     throw new Error("Failed to generate file access URL");
+  }
+}
+
+export async function deleteFilesFromR2(filePaths: string[]): Promise<void> {
+  try {
+    await Promise.all(
+      filePaths.map(async (path) => {
+        try {
+          const command = new DeleteObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME!,
+            Key: path,
+          });
+
+          await r2Client.send(command);
+          r2Logger.info(`Successfully deleted file: ${path}`);
+        } catch (error) {
+          r2Logger.error(`Failed to delete file: ${path}`, error);
+          // Continue with other deletions even if one fails
+        }
+      })
+    );
+  } catch (error) {
+    r2Logger.error("Error in bulk file deletion:", error);
+    throw new Error("Failed to delete files from storage");
+  }
+}
+
+export async function deleteFileFromR2(path: string): Promise<boolean> {
+  try {
+    const command = new DeleteObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME!,
+      Key: path,
+    });
+
+    await r2Client.send(command);
+    r2Logger.info(`Successfully deleted file: ${path}`);
+    return true;
+  } catch (error) {
+    r2Logger.error(`Failed to delete file: ${path}`, error);
+    return false;
   }
 }
 

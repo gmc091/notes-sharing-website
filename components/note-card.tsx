@@ -1,12 +1,10 @@
-// components/note-card.tsx
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,11 +12,15 @@ import {
   Calendar,
   ChevronRight,
   FileText,
-  Clock,
   Eye,
   Coins,
-  Check,
   User,
+  ChevronDown,
+  ChevronUp,
+  BookOpen,
+  GraduationCap,
+  School,
+  Shield,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -27,187 +29,263 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getDisplayFilename } from "@/lib/file-utils";
+import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Note } from "@/types/notes";
 
 interface NoteCardProps {
   note: Note;
 }
 
-const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
-  const fileTypes = Array.from(
-    new Set(
-      note.files.map((file) => {
-        const extension = file.name.split(".").pop()?.toLowerCase() || "";
-        return extension;
-      })
-    )
-  );
+const MAX_DESCRIPTION_LENGTH = 150;
+const MOBILE_TAG_LIMIT = 2;
+const DESKTOP_TAG_LIMIT = 3;
+
+export default function NoteCard({ note }: NoteCardProps) {
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  const hasAccess = note.isPurchased || note.isAuthor;
+  const description = note.description?.trim() || "";
+  const hasDescription = description.length > 0;
+  const shouldTruncate =
+    hasDescription && description.length > MAX_DESCRIPTION_LENGTH;
+  const truncatedDescription = shouldTruncate
+    ? description.slice(0, MAX_DESCRIPTION_LENGTH) + "..."
+    : description;
 
   const formattedDate = new Date(note.createdAt).toLocaleDateString("it-IT", {
     year: "numeric",
-    month: "short",
+    month: "long",
     day: "numeric",
   });
 
-  const formattedTime = new Date(note.createdAt).toLocaleTimeString("it-IT", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const fileTypes = Array.from(
+    new Set(note.files.map((file) => file.name.split(".").pop()?.toLowerCase()))
+  ).filter(Boolean);
 
-  const hasAccess = note.isPurchased || note.isAuthor;
+  const renderTags = (
+    items: string[],
+    variant: "outline" | "secondary" = "outline",
+    prefix?: string
+  ) => {
+    const limit = isMobile ? MOBILE_TAG_LIMIT : DESKTOP_TAG_LIMIT;
+    const visibleTags = items.slice(0, limit);
+    const remainingCount = items.length - limit;
+
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {visibleTags.map((item) => (
+          <Badge key={item} variant={variant} className="text-xs bg-white/50">
+            {prefix ? `${prefix}${item}` : item}
+          </Badge>
+        ))}
+        {remainingCount > 0 && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant={variant}
+                className="text-xs bg-white/50 cursor-help"
+              >
+                +{remainingCount} altri
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent className="p-2">
+              <div className="flex flex-col gap-1">
+                {items.slice(limit).map((item) => (
+                  <span key={item} className="text-xs">
+                    {prefix ? `${prefix}${item}` : item}
+                  </span>
+                ))}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+    );
+  };
+
+  const renderAccessBadge = () => {
+    if (note.isAuthor) {
+      return (
+        <Badge variant="default" className="shrink-0">
+          <Shield className="h-3.5 w-3.5 mr-1" />
+          Proprietario
+        </Badge>
+      );
+    }
+
+    if (note.isPurchased) {
+      return (
+        <Badge variant="secondary" className="shrink-0">
+          <Shield className="h-3.5 w-3.5 mr-1" />
+          Accesso acquistato
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge variant="outline" className="shrink-0">
+        <Coins className="h-3.5 w-3.5 mr-1" />1 punto
+      </Badge>
+    );
+  };
 
   return (
-    <Card className="group flex flex-col h-full border bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-300">
-      <CardHeader className="space-y-3 pb-3">
-        <div className="space-y-2">
-          <CardTitle className="text-lg font-semibold line-clamp-2 text-primary">
+    <Card className="group h-[32rem] flex flex-col transition-all duration-300 hover:shadow-lg border bg-white/50 backdrop-blur-sm">
+      {/* Header Section */}
+      <CardHeader className="p-5 space-y-4">
+        {/* Title and Access Badge */}
+        <div className="flex items-start justify-between gap-4">
+          <h3 className="font-semibold text-lg text-primary leading-tight line-clamp-2">
             {note.title}
-          </CardTitle>
-          <div className="flex items-center flex-wrap gap-2 text-xs">
-            <Tooltip>
-              <TooltipTrigger className="flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" />
-                <span className="text-muted-foreground">
-                  {note.isAnonymous
-                    ? "Anonimo"
-                    : note.authorUsername || "Utente"}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {note.isAnonymous ? "Appunto anonimo" : "Autore dell'appunto"}
-              </TooltipContent>
-            </Tooltip>
-            <Separator orientation="vertical" className="h-3" />
-            <span className="flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" />
-              <time dateTime={note.createdAt} className="text-muted-foreground">
-                {formattedTime}
-              </time>
-            </span>
-            <Separator orientation="vertical" className="h-3" />
-            <span className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5" />
-              <time dateTime={note.createdAt} className="text-muted-foreground">
-                {formattedDate}
-              </time>
-            </span>
-          </div>
+          </h3>
+          {renderAccessBadge()}
         </div>
+
         <Separator />
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Tooltip>
-              <TooltipTrigger className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Eye className="h-4 w-4" />
-                <span>{note.purchaseCount || 0}</span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {note.purchaseCount}{" "}
-                {note.purchaseCount === 1 ? "acquisto" : "acquisti"}
-              </TooltipContent>
-            </Tooltip>
+
+        {/* Meta Information */}
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <User className="h-4 w-4" />
+            <span className="truncate">
+              {note.isAnonymous ? "Anonimo" : note.authorUsername || "Utente"}
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            {note.isAuthor && (
-              <Tooltip>
-                <TooltipTrigger>
-                  <Badge variant="secondary" className="gap-1">
-                    <User className="h-3 w-3" />
-                    <span>Il tuo appunto</span>
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>Hai creato questo appunto</TooltipContent>
-              </Tooltip>
-            )}
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Calendar className="h-4 w-4 shrink-0" />
+            <span className="truncate">{formattedDate}</span>
+          </div>
 
-            <Tooltip>
-              <TooltipTrigger>
-                <Badge
-                  variant={hasAccess ? "secondary" : "outline"}
-                  className="gap-1"
-                >
-                  {hasAccess ? (
-                    <>
-                      <Check className="h-3 w-3" />
-                      <span>Disponibile</span>
-                    </>
-                  ) : (
-                    <>
-                      <Coins className="h-3 w-3" />
-                      <span>1 punto</span>
-                    </>
-                  )}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                {hasAccess
-                  ? "Hai già accesso a questo appunto"
-                  : "Costa 1 punto acquistare questo appunto"}
-              </TooltipContent>
-            </Tooltip>
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Eye className="h-4 w-4" />
+            <span>{note.purchaseCount} visualizzazioni</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <ScrollText className="h-4 w-4" />
+            <span>{note.files.length} files</span>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="flex-grow space-y-3">
-        <Separator className="bg-border/60 -mt-1" />
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <ScrollText className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              {note.files.length} {note.files.length === 1 ? "file" : "files"}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-1.5 justify-end">
-            {fileTypes.map((type) => (
-              <Badge
-                key={type}
-                variant="secondary"
-                className="uppercase text-[10px] font-semibold px-2 py-0 bg-secondary/50"
+      {/* Main Content */}
+      <CardContent className="px-5 flex-grow space-y-4 overflow-hidden">
+        {/* Description Section */}
+        {hasDescription && (
+          <div className="space-y-2">
+            <p
+              className={cn(
+                "text-sm text-muted-foreground leading-relaxed",
+                !isDescriptionExpanded && "line-clamp-3"
+              )}
+            >
+              {isDescriptionExpanded ? description : truncatedDescription}
+            </p>
+            {shouldTruncate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                className="h-6 px-2 text-xs hover:bg-transparent hover:underline"
               >
-                {type}
-              </Badge>
-            ))}
+                {isDescriptionExpanded ? (
+                  <>
+                    <ChevronUp className="h-3 w-3 mr-1" />
+                    Mostra meno
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-3 w-3 mr-1" />
+                    Continua a leggere
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        )}
+
+        <Separator />
+
+        {/* Categories Grid */}
+        <div className="grid grid-cols-1 gap-3">
+          {/* Schools */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <School className="h-3.5 w-3.5" />
+              <span>Scuola</span>
+            </div>
+            {renderTags(note.schools, "outline")}
+          </div>
+
+          {/* Subjects */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <BookOpen className="h-3.5 w-3.5" />
+              <span>Materie</span>
+            </div>
+            {renderTags(note.subjects, "outline")}
+          </div>
+
+          {/* Years */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <GraduationCap className="h-3.5 w-3.5" />
+              <span>Anno</span>
+            </div>
+            {renderTags(note.years.map(String), "outline", "Anno ")}
           </div>
         </div>
-        <Separator className="bg-border/60 -mt-1" />
 
-        <div className="space-y-3">
-          {note.files.slice(0, 2).map((file, index) => (
-            <div key={index}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 text-sm group/file">
-                    <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground group-hover/file:text-primary transition-colors" />
-                    <span className="truncate text-muted-foreground group-hover/file:text-primary transition-colors">
-                      {getDisplayFilename(file.name, 30)}
-                    </span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent
-                  side="top"
-                  className="max-w-[300px] bg-popover/95 px-3 py-1.5"
+        <Separator />
+
+        {/* Files Preview */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Formato file</span>
+            <div className="flex gap-1.5">
+              {fileTypes.map((type) => (
+                <Badge
+                  key={type}
+                  variant="outline"
+                  className="uppercase text-[10px] font-semibold px-1.5 py-0 bg-white/50"
                 >
-                  <p className="text-xs">{file.name}</p>
-                </TooltipContent>
-              </Tooltip>
+                  {type}
+                </Badge>
+              ))}
             </div>
-          ))}
-          {note.files.length > 2 && (
-            <p className="text-sm text-muted-foreground/80 italic pl-6">
-              +{note.files.length - 2} more files...
-            </p>
-          )}
+          </div>
+
+          {/* File List */}
+          <div className="space-y-1.5">
+            {note.files.slice(0, 2).map((file, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-2 text-sm group/file"
+              >
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="truncate text-muted-foreground">
+                  {file.name}
+                </span>
+              </div>
+            ))}
+            {note.files.length > 2 && (
+              <p className="text-sm text-muted-foreground/80 italic pl-6">
+                +{note.files.length - 2} altri files...
+              </p>
+            )}
+          </div>
         </div>
       </CardContent>
-      <CardFooter className="pt-4">
+
+      {/* Footer */}
+      <CardFooter className="p-5">
         <Button
           asChild
           variant="default"
-          className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300"
+          className="w-full transition-all duration-300 group-hover:bg-primary group-hover:text-primary-foreground"
         >
           <Link
             href={`/note/${note.id}`}
@@ -216,7 +294,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
             {hasAccess ? (
               <>
                 <span className="font-medium">Apri appunto</span>
-                <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
               </>
             ) : (
               <>
@@ -229,6 +307,4 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
       </CardFooter>
     </Card>
   );
-};
-
-export default NoteCard;
+}
